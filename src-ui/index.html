@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pick-up-sound-text</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="file">文件转字幕</button>
+            <button class="tab" data-tab="realtime">实时字幕</button>
+            <button class="tab" data-tab="settings">设置</button>
+        </div>
+
+        <div class="tab-content" id="file-tab">
+            <div class="drop-zone" id="drop-zone">
+                <p>拖拽视频文件到这里，或点击选择文件</p>
+                <p class="hint">支持格式: mp4 / mkv / avi / mov ...</p>
+                <input type="file" id="file-input" accept="video/*" style="display: none;">
+            </div>
+
+            <div class="task-list" id="task-list">
+                <!-- Tasks will be added here -->
+            </div>
+        </div>
+
+        <div class="tab-content" id="realtime-tab" style="display: none;">
+            <p>实时字幕功能开发中...</p>
+        </div>
+
+        <div class="tab-content" id="settings-tab" style="display: none;">
+            <p>设置功能开发中...</p>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
