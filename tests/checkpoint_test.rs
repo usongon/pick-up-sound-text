@@ -3,10 +3,7 @@ use std::path::PathBuf;
 
 #[test]
 fn test_checkpoint_save_load() {
-    let mut checkpoint = Checkpoint::new(
-        "test_task".to_string(),
-        PathBuf::from("test.mp4"),
-    );
+    let mut checkpoint = Checkpoint::new("test_task".to_string(), PathBuf::from("test.mp4"));
 
     checkpoint.segments.push(SegmentProgress {
         segment_id: 0,
@@ -28,10 +25,7 @@ fn test_checkpoint_save_load() {
 
 #[test]
 fn test_checkpoint_jsonl_format() {
-    let mut checkpoint = Checkpoint::new(
-        "xxx".to_string(),
-        PathBuf::from("/path/to/video.mp4"),
-    );
+    let mut checkpoint = Checkpoint::new("xxx".to_string(), PathBuf::from("/path/to/video.mp4"));
 
     checkpoint.segments.push(SegmentProgress {
         segment_id: 0,
@@ -73,10 +67,7 @@ fn test_checkpoint_jsonl_format() {
 
 #[test]
 fn test_next_pending_segment() {
-    let mut checkpoint = Checkpoint::new(
-        "test_task".to_string(),
-        PathBuf::from("test.mp4"),
-    );
+    let mut checkpoint = Checkpoint::new("test_task".to_string(), PathBuf::from("test.mp4"));
 
     checkpoint.segments.push(SegmentProgress {
         segment_id: 0,

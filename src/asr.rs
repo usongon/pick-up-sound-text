@@ -1,11 +1,22 @@
-use async_trait::async_trait;
 use crate::Result;
+use async_trait::async_trait;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AsrEvent {
-    Partial { text: String, ts_start: f64, ts_end: f64 },
-    Final { text: String, ts_start: f64, ts_end: f64 },
-    Error { code: String, message: String },
+    Partial {
+        text: String,
+        ts_start: f64,
+        ts_end: f64,
+    },
+    Final {
+        text: String,
+        ts_start: f64,
+        ts_end: f64,
+    },
+    Error {
+        code: String,
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone)]

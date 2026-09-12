@@ -122,7 +122,10 @@ mod tests {
     #[test]
     fn dedup_respects_max_overlap() {
         // overlap is 5 ("world"), but max_overlap=3 -> no dedup
-        assert_eq!(dedup_overlap("hello world", "world again", 3), "world again");
+        assert_eq!(
+            dedup_overlap("hello world", "world again", 3),
+            "world again"
+        );
     }
 
     #[test]

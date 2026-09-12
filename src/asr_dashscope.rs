@@ -1,6 +1,6 @@
-use async_trait::async_trait;
-use crate::asr::{AsrProvider, AsrStream, AsrConfig, AsrEvent};
+use crate::asr::{AsrConfig, AsrEvent, AsrProvider, AsrStream};
 use crate::Result;
+use async_trait::async_trait;
 
 pub struct DashScopeAsrProvider;
 

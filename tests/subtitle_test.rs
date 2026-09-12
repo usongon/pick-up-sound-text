@@ -1,4 +1,4 @@
-use pick_up_sound_text::subtitle::{SubtitleEntry, SubtitleStatus, generate_srt};
+use pick_up_sound_text::subtitle::{generate_srt, SubtitleEntry, SubtitleStatus};
 
 #[test]
 fn test_srt_generation() {

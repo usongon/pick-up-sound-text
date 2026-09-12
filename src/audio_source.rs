@@ -1,6 +1,6 @@
+use crate::Result;
 use async_trait::async_trait;
 use std::time::Duration;
-use crate::Result;
 
 /// A chunk of audio data with associated timestamps.
 #[derive(Debug, Clone)]

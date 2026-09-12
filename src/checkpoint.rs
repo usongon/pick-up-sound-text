@@ -1,7 +1,7 @@
+use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::PathBuf;
-use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentProgress {
@@ -70,10 +70,7 @@ impl Checkpoint {
         let mut lines = content.lines().filter(|l| !l.trim().is_empty());
 
         let meta_line = lines.next().ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "checkpoint file is empty",
-            )
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "checkpoint file is empty")
         })?;
         let meta: CheckpointMeta = serde_json::from_str(meta_line)?;
 

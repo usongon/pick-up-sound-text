@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use crate::translate::{TranslateProvider, TranslateRequest, TranslateResponse};
 use crate::Result;
+use async_trait::async_trait;
 
 pub struct OpenAiCompatibleProvider {
     pub base_url: String,

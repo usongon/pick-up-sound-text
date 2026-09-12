@@ -1,7 +1,7 @@
-use tauri::State;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use pick_up_sound_text::pipeline::FilePipeline;
+use std::sync::Arc;
+use tauri::State;
+use tokio::sync::Mutex;
 
 pub struct AppState {
     pub pipeline: Arc<Mutex<Option<FilePipeline>>>,
@@ -23,19 +23,14 @@ pub async fn start_file_processing(
 }
 
 #[tauri::command]
-pub async fn get_processing_progress(
-    state: State<'_, AppState>,
-) -> Result<f64, String> {
+pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, String> {
     // TODO: Implement progress query
     // Get pipeline from state and return progress percentage
     Ok(0.0)
 }
 
 #[tauri::command]
-pub async fn export_subtitle(
-    format: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub async fn export_subtitle(format: String, state: State<'_, AppState>) -> Result<String, String> {
     // TODO: Implement subtitle export
     // 1. Get entries from pipeline
     // 2. Format as SRT/VTT/etc based on format param
