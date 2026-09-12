@@ -3,6 +3,7 @@ pub mod file_audio_source;
 pub mod asr;
 pub mod asr_dashscope;
 pub mod translate;
+pub mod translate_openai;
 pub mod subtitle;
 pub mod pipeline;
 pub mod config;
