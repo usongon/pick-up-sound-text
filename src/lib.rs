@@ -8,5 +8,6 @@ pub mod subtitle;
 pub mod pipeline;
 pub mod config;
 pub mod error;
+pub mod checkpoint;
 
 pub use error::{Error, Result};
