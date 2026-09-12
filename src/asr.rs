@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AsrEvent {
     Partial { text: String, ts_start: f64, ts_end: f64 },
     Final { text: String, ts_start: f64, ts_end: f64 },
