@@ -5,7 +5,7 @@
   "identifier": "com.usongon.pick-up-sound-text",
   "build": {
     "beforeDevCommand": "",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "../src-ui",
     "beforeBuildCommand": "",
     "frontendDist": "../src-ui"
   },
