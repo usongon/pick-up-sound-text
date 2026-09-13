@@ -34,6 +34,10 @@ impl FileAudioSource {
     }
 
     async fn get_video_duration(path: &PathBuf) -> Result<Duration> {
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| Error::AudioSource("Path contains invalid UTF-8".to_string()))?;
+
         let output = Command::new("ffprobe")
             .args(&[
                 "-v",
@@ -42,7 +46,7 @@ impl FileAudioSource {
                 "format=duration",
                 "-of",
                 "default=noprint_wrappers=1:nokey=1",
-                path.to_str().unwrap(),
+                path_str,
             ])
             .output()
             .await?;
@@ -64,10 +68,15 @@ impl FileAudioSource {
     }
 
     async fn extract_audio_segment(&self, start: Duration, duration: Duration) -> Result<Vec<i16>> {
+        let path_str = self
+            .video_path
+            .to_str()
+            .ok_or_else(|| Error::AudioSource("Path contains invalid UTF-8".to_string()))?;
+
         let output = Command::new("ffmpeg")
             .args(&[
                 "-i",
-                self.video_path.to_str().unwrap(),
+                path_str,
                 "-ss",
                 &format!("{:.3}", start.as_secs_f64()),
                 "-t",
@@ -124,8 +133,11 @@ impl AudioSource for FileAudioSource {
             wall_time_ms: self.current_position.as_millis() as i64,
         };
 
-        // Move position forward by segment_duration (not including overlap)
-        self.current_position += self.segment_duration;
+        // Move position forward by segment_duration, but not beyond total_duration
+        self.current_position = std::cmp::min(
+            self.current_position + self.segment_duration,
+            self.total_duration,
+        );
 
         Ok(chunk)
     }
