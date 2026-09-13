@@ -2,11 +2,12 @@ use pick_up_sound_text::asr::DashScopeAsrProvider;
 use pick_up_sound_text::audio::FileAudioSource;
 use pick_up_sound_text::config::AppConfig;
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
-use pick_up_sound_text::subtitle::{generate_srt, SubtitleEntry};
+use pick_up_sound_text::subtitle::{generate_srt, generate_vtt, SubtitleEntry};
 use pick_up_sound_text::translate::OpenAiCompatibleProvider;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -129,7 +130,11 @@ pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, 
 }
 
 #[tauri::command]
-pub async fn export_subtitle(format: String, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn export_subtitle(
+    format: String,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     let pipeline_entries_guard = state.pipeline_entries.lock().await;
 
     if let Some(entries_handle) = pipeline_entries_guard.as_ref() {
@@ -138,14 +143,43 @@ pub async fn export_subtitle(format: String, state: State<'_, AppState>) -> Resu
         match format.as_str() {
             "srt" => {
                 let srt = generate_srt(&entries);
-                let output_path = "output.srt";
-                std::fs::write(output_path, srt)
-                    .map_err(|e| e.to_string())?;
-                Ok(output_path.to_string())
+                
+                // Use system save dialog
+                let file_path = app.dialog()
+                    .file()
+                    .set_title("Save SRT subtitle")
+                    .set_file_name("output.srt")
+                    .add_filter("SRT Subtitle", &["srt"])
+                    .blocking_save_file();
+                
+                if let Some(path) = file_path {
+                    let path_buf = path.into_path().map_err(|e| e.to_string())?;
+                    std::fs::write(&path_buf, srt)
+                        .map_err(|e| e.to_string())?;
+                    Ok(path_buf.to_string_lossy().to_string())
+                } else {
+                    Err("Save cancelled".to_string())
+                }
             }
             "vtt" => {
-                // TODO: Implement VTT generation
-                Err("VTT export not yet implemented".to_string())
+                let vtt = generate_vtt(&entries);
+                
+                // Use system save dialog
+                let file_path = app.dialog()
+                    .file()
+                    .set_title("Save VTT subtitle")
+                    .set_file_name("output.vtt")
+                    .add_filter("VTT Subtitle", &["vtt"])
+                    .blocking_save_file();
+                
+                if let Some(path) = file_path {
+                    let path_buf = path.into_path().map_err(|e| e.to_string())?;
+                    std::fs::write(&path_buf, vtt)
+                        .map_err(|e| e.to_string())?;
+                    Ok(path_buf.to_string_lossy().to_string())
+                } else {
+                    Err("Save cancelled".to_string())
+                }
             }
             _ => Err(format!("Unsupported format: {}", format)),
         }
