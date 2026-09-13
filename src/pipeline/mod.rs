@@ -9,6 +9,7 @@ use tokio::sync::Mutex;
 
 use crate::asr::{AsrConfig, AsrEvent, AsrProvider};
 use crate::audio::AudioSource;
+use crate::config::AppConfig;
 use crate::error::Error;
 use crate::subtitle::{SubtitleEntry, SubtitleStatus};
 use crate::translate::{TranslateProvider, TranslateRequest};
@@ -29,6 +30,7 @@ pub struct FilePipeline {
     asr_provider: Box<dyn AsrProvider>,
     translate_provider: Box<dyn TranslateProvider>,
     entries: Arc<Mutex<Vec<SubtitleEntry>>>,
+    config: AppConfig,
 }
 
 impl FilePipeline {
@@ -36,6 +38,7 @@ impl FilePipeline {
         audio_source: Box<dyn AudioSource>,
         asr_provider: Box<dyn AsrProvider>,
         translate_provider: Box<dyn TranslateProvider>,
+        config: AppConfig,
     ) -> Self {
         Self {
             state: Arc::new(Mutex::new(PipelineState::Idle)),
@@ -43,6 +46,7 @@ impl FilePipeline {
             asr_provider,
             translate_provider,
             entries: Arc::new(Mutex::new(Vec::new())),
+            config,
         }
     }
 
@@ -67,10 +71,10 @@ impl FilePipeline {
 
             // Start ASR stream
             let asr_config = AsrConfig {
-                provider: "dashscope".to_string(),
-                model: "paraformer-realtime-v2".to_string(),
-                api_key: "".to_string(), // TODO: Get from config
-                language: "auto".to_string(),
+                provider: self.config.asr.provider.clone(),
+                model: self.config.asr.model.clone(),
+                api_key: self.config.asr.api_key.clone(),
+                language: self.config.asr.language.clone(),
             };
             let mut asr_stream = self.asr_provider.start_stream(&asr_config).await?;
 
@@ -90,7 +94,7 @@ impl FilePipeline {
                         let translate_req = TranslateRequest {
                             text: text.clone(),
                             source_lang: "auto".to_string(),
-                            target_lang: "zh".to_string(),
+                            target_lang: self.config.translate.target_lang.clone(),
                             context: previous_entries.iter()
                                 .rev()
                                 .take(10)

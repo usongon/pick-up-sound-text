@@ -2,13 +2,17 @@ use pick_up_sound_text::asr::AsrProvider;
 use pick_up_sound_text::asr::{AsrConfig, AsrEvent};
 use pick_up_sound_text::asr::dashscope::DashScopeAsrProvider;
 
+// These tests require a real DashScope API key and network access
+// They are marked as ignored by default
+
 #[tokio::test]
+#[ignore]
 async fn test_dashscope_provider_creation() {
     let provider = DashScopeAsrProvider;
     let config = AsrConfig {
         provider: "dashscope".to_string(),
         model: "paraformer-realtime-v2".to_string(),
-        api_key: "test_key".to_string(),
+        api_key: std::env::var("DASHSCOPE_API_KEY").unwrap_or_else(|_| "test_key".to_string()),
         language: "auto".to_string(),
     };
 
@@ -17,12 +21,13 @@ async fn test_dashscope_provider_creation() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_dashscope_stream_placeholder_event() {
     let provider = DashScopeAsrProvider;
     let config = AsrConfig {
         provider: "dashscope".to_string(),
         model: "paraformer-realtime-v2".to_string(),
-        api_key: "test_key".to_string(),
+        api_key: std::env::var("DASHSCOPE_API_KEY").unwrap_or_else(|_| "test_key".to_string()),
         language: "auto".to_string(),
     };
 

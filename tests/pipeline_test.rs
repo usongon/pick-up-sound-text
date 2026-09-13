@@ -1,5 +1,6 @@
 use pick_up_sound_text::asr::{AsrConfig, AsrEvent, AsrProvider, AsrStream};
 use pick_up_sound_text::audio::{AudioChunk, AudioSource};
+use pick_up_sound_text::config::AppConfig;
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
 use pick_up_sound_text::subtitle::SubtitleStatus;
 use pick_up_sound_text::translate::{TranslateProvider, TranslateRequest, TranslateResponse};
@@ -121,6 +122,7 @@ async fn test_pipeline_process_with_mock() {
         Box::new(MockAudioSource::new(chunks)),
         Box::new(MockAsrProvider),
         Box::new(MockTranslateProvider),
+        AppConfig::default(),
     );
 
     assert_eq!(pipeline.get_state().await, PipelineState::Idle);

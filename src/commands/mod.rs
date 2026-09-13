@@ -38,6 +38,9 @@ pub async fn start_file_processing(
 ) -> Result<String, String> {
     let video_path = PathBuf::from(video_path);
 
+    // Get config
+    let config = state.config.lock().await.clone();
+
     // Create audio source
     let audio_source = FileAudioSource::new(video_path.clone())
         .await
@@ -48,9 +51,9 @@ pub async fn start_file_processing(
 
     // Create translate provider
     let translate_provider = OpenAiCompatibleProvider {
-        base_url: "https://api.openai.com/v1".to_string(),
-        model: "gpt-3.5-turbo".to_string(),
-        api_key: "".to_string(), // TODO: Get from config
+        base_url: config.translate.base_url.clone(),
+        model: config.translate.model.clone(),
+        api_key: config.translate.api_key.clone(),
     };
 
     // Create pipeline
@@ -58,6 +61,7 @@ pub async fn start_file_processing(
         Box::new(audio_source),
         Box::new(asr_provider),
         Box::new(translate_provider),
+        config.clone(),
     );
 
     // Get shared state handles
