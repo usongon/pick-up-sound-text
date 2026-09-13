@@ -17,6 +17,7 @@ pub enum AsrEvent {
         code: String,
         message: String,
     },
+    EndOfStream,
 }
 
 #[derive(Debug, Clone)]

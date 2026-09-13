@@ -117,9 +117,15 @@ impl FilePipeline {
                         *state = PipelineState::Failed;
                         return Err(Error::Asr(format!("{}: {}", code, message)));
                     }
-                    Err(_) => {
+                    Ok(AsrEvent::EndOfStream) => {
                         // End of ASR stream for this chunk
                         break;
+                    }
+                    Err(e) => {
+                        // Real ASR error (network, quota, auth, etc.)
+                        let mut state = self.state.lock().await;
+                        *state = PipelineState::Failed;
+                        return Err(e);
                     }
                 }
             }
@@ -128,16 +134,44 @@ impl FilePipeline {
             if !previous_entries.is_empty() && !segment_entries.is_empty() {
                 let last_prev = previous_entries.last().unwrap();
                 let first_curr = segment_entries.first().unwrap();
-                let overlap_text = dedup_overlap(&last_prev.source, &first_curr.source, 50);
-                if !overlap_text.is_empty() {
+                let deduped_text = dedup_overlap(&last_prev.source, &first_curr.source, 50);
+                if !deduped_text.is_empty() && deduped_text != first_curr.source {
+                    // Calculate overlap ratio for timestamp adjustment
+                    let overlap_chars = first_curr.source.chars().count() - deduped_text.chars().count();
+                    let total_chars = first_curr.source.chars().count();
+                    let overlap_ratio = overlap_chars as f64 / total_chars as f64;
+                    
                     // Adjust first entry of current segment
-                    segment_entries[0].source = overlap_text;
+                    let first_entry = &mut segment_entries[0];
+                    first_entry.source = deduped_text.clone();
+                    
+                    // Proportionally adjust timestamps
+                    let duration = first_entry.content_end - first_entry.content_start;
+                    first_entry.content_start += duration * overlap_ratio;
+                    
+                    let wall_duration = first_entry.wall_end - first_entry.wall_start;
+                    first_entry.wall_start += (wall_duration as f64 * overlap_ratio) as i64;
+                    
+                    // Re-translate the deduped text to keep source and translated consistent
+                    let translate_req = TranslateRequest {
+                        text: deduped_text,
+                        source_lang: "auto".to_string(),
+                        target_lang: "zh".to_string(),
+                        context: previous_entries.iter()
+                            .rev()
+                            .take(10)
+                            .map(|e| e.source.clone())
+                            .collect(),
+                        glossary: None,
+                    };
+                    let translate_resp = self.translate_provider.translate(translate_req).await?;
+                    first_entry.translated = translate_resp.translated_text;
                 }
             }
 
             // Add segment entries to entries
             let mut entries = self.entries.lock().await;
-            entries.extend(segment_entries.clone());
+            entries.extend(segment_entries.iter().cloned());
             drop(entries);
 
             previous_entries = segment_entries;

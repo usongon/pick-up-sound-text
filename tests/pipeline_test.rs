@@ -1,6 +1,7 @@
 use pick_up_sound_text::asr::{AsrConfig, AsrEvent, AsrProvider, AsrStream};
 use pick_up_sound_text::audio_source::{AudioChunk, AudioSource};
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
+use pick_up_sound_text::subtitle::SubtitleStatus;
 use pick_up_sound_text::translate::{TranslateProvider, TranslateRequest, TranslateResponse};
 use pick_up_sound_text::{Error, Result};
 use async_trait::async_trait;
@@ -74,11 +75,8 @@ impl AsrStream for MockAsrStream {
 
     async fn next_event(&mut self) -> Result<AsrEvent> {
         if self.index >= self.events.len() {
-            // In real implementation this would block or return an error
-            // For mock, we just return the last event again to avoid infinite loop
-            // But for pipeline test, we need to break the loop somehow
-            // Let's return an error to break the loop
-            return Err(Error::Asr("No more events".to_string()));
+            // Return EndOfStream to signal end of ASR stream
+            return Ok(AsrEvent::EndOfStream);
         }
         let event = self.events[self.index].clone();
         self.index += 1;
@@ -119,7 +117,7 @@ async fn test_pipeline_process_with_mock() {
         },
     ];
 
-    let pipeline = FilePipeline::new(
+    let mut pipeline = FilePipeline::new(
         Box::new(MockAudioSource::new(chunks)),
         Box::new(MockAsrProvider),
         Box::new(MockTranslateProvider),
@@ -127,9 +125,17 @@ async fn test_pipeline_process_with_mock() {
 
     assert_eq!(pipeline.get_state().await, PipelineState::Idle);
 
-    // Note: The current mock ASR stream will cause an infinite loop in process()
-    // because next_event() returns an error after events are exhausted, but the
-    // pipeline loop doesn't break on ASR errors - it returns Failed.
-    // This test verifies the pipeline can at least start processing.
-    // A full integration test requires a more sophisticated mock.
+    // Actually call process() and verify results
+    let result = pipeline.process().await;
+    assert!(result.is_ok());
+    assert_eq!(pipeline.get_state().await, PipelineState::Completed);
+
+    // Verify entries were created
+    let entries = pipeline.get_entries().await;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].source, "hello world");
+    assert_eq!(entries[0].translated, "[Translated] hello world");
+    assert_eq!(entries[0].status, SubtitleStatus::Final);
+    assert_eq!(entries[0].content_start, 0.0);
+    assert_eq!(entries[0].content_end, 1.0);
 }
