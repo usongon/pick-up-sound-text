@@ -1,5 +1,6 @@
 use pick_up_sound_text::asr::DashScopeAsrProvider;
 use pick_up_sound_text::audio::FileAudioSource;
+use pick_up_sound_text::config::AppConfig;
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
 use pick_up_sound_text::subtitle::{generate_srt, SubtitleEntry};
 use pick_up_sound_text::translate::OpenAiCompatibleProvider;
@@ -13,6 +14,21 @@ pub struct AppState {
     pub pipeline_state: Arc<Mutex<Option<Arc<Mutex<PipelineState>>>>>,
     pub pipeline_entries: Arc<Mutex<Option<Arc<Mutex<Vec<SubtitleEntry>>>>>>,
     pub processing_task: Arc<Mutex<Option<JoinHandle<()>>>>,
+    pub config: Arc<Mutex<AppConfig>>,
+}
+
+#[tauri::command]
+pub async fn get_config(state: State<'_, AppState>) -> Result<AppConfig, String> {
+    let config = state.config.lock().await;
+    Ok(config.clone())
+}
+
+#[tauri::command]
+pub async fn save_config(config: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
+    let mut config_guard = state.config.lock().await;
+    *config_guard = config.clone();
+    config.save().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]

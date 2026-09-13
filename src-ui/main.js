@@ -143,3 +143,67 @@ function updateProgress(progress) {
         bar.style.width = `${progress * 100}%`;
     });
 }
+
+// Settings page logic
+async function loadConfig() {
+    try {
+        const config = await window.__TAURI__.invoke('get_config');
+        
+        // ASR config
+        document.getElementById('asr-provider').value = config.asr.provider;
+        document.getElementById('asr-model').value = config.asr.model;
+        document.getElementById('asr-api-key').value = config.asr.api_key;
+        document.getElementById('asr-language').value = config.asr.language;
+        
+        // Translate config
+        document.getElementById('translate-provider').value = config.translate.provider;
+        document.getElementById('translate-base-url').value = config.translate.base_url;
+        document.getElementById('translate-model').value = config.translate.model;
+        document.getElementById('translate-api-key').value = config.translate.api_key;
+        document.getElementById('translate-target-lang').value = config.translate.target_lang;
+    } catch (error) {
+        console.error('Failed to load config:', error);
+    }
+}
+
+async function saveConfig() {
+    const statusDiv = document.getElementById('config-status');
+    
+    try {
+        const config = {
+            asr: {
+                provider: document.getElementById('asr-provider').value,
+                model: document.getElementById('asr-model').value,
+                api_key: document.getElementById('asr-api-key').value,
+                language: document.getElementById('asr-language').value,
+            },
+            translate: {
+                provider: document.getElementById('translate-provider').value,
+                base_url: document.getElementById('translate-base-url').value,
+                model: document.getElementById('translate-model').value,
+                api_key: document.getElementById('translate-api-key').value,
+                target_lang: document.getElementById('translate-target-lang').value,
+            },
+        };
+        
+        await window.__TAURI__.invoke('save_config', { config });
+        
+        statusDiv.textContent = '配置已保存';
+        statusDiv.className = 'status-message success';
+        setTimeout(() => {
+            statusDiv.className = 'status-message';
+        }, 3000);
+    } catch (error) {
+        console.error('Failed to save config:', error);
+        statusDiv.textContent = '保存失败: ' + error;
+        statusDiv.className = 'status-message error';
+    }
+}
+
+// Load config when settings tab is shown
+document.querySelector('[data-tab="settings"]').addEventListener('click', () => {
+    loadConfig();
+});
+
+// Save config button
+document.getElementById('save-config-btn').addEventListener('click', saveConfig);
