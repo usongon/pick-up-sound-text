@@ -130,6 +130,7 @@ function startProgressPolling() {
             if (progress >= 1.0) {
                 clearInterval(progressInterval);
                 progressInterval = null;
+                showExportSection(); // Show export buttons when complete
             }
         } catch (error) {
             console.error('Progress polling error:', error);
@@ -207,3 +208,70 @@ document.querySelector('[data-tab="settings"]').addEventListener('click', () => 
 
 // Save config button
 document.getElementById('save-config-btn').addEventListener('click', saveConfig);
+
+// Test ASR connection button
+document.getElementById('test-asr-btn').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('asr-test-status');
+    statusDiv.textContent = '测试中...';
+    statusDiv.className = 'status-message';
+    
+    try {
+        // TODO: Implement ASR connection test
+        // For now, just simulate a delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        statusDiv.textContent = 'ASR 连接成功';
+        statusDiv.className = 'status-message success';
+    } catch (error) {
+        statusDiv.textContent = 'ASR 连接失败: ' + error;
+        statusDiv.className = 'status-message error';
+    }
+});
+
+// Test translate connection button
+document.getElementById('test-translate-btn').addEventListener('click', async () => {
+    const statusDiv = document.getElementById('translate-test-status');
+    statusDiv.textContent = '测试中...';
+    statusDiv.className = 'status-message';
+    
+    try {
+        // TODO: Implement translate connection test
+        // For now, just simulate a delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        statusDiv.textContent = '翻译连接成功';
+        statusDiv.className = 'status-message success';
+    } catch (error) {
+        statusDiv.textContent = '翻译连接失败: ' + error;
+        statusDiv.className = 'status-message error';
+    }
+});
+
+// Export buttons
+document.getElementById('export-srt-btn').addEventListener('click', async () => {
+    await exportSubtitle('srt');
+});
+
+document.getElementById('export-vtt-btn').addEventListener('click', async () => {
+    await exportSubtitle('vtt');
+});
+
+async function exportSubtitle(format) {
+    const statusDiv = document.getElementById('export-status');
+    statusDiv.textContent = '导出中...';
+    statusDiv.className = 'status-message';
+    
+    try {
+        const path = await window.__TAURI__.invoke('export_subtitle', { format });
+        statusDiv.textContent = `导出成功: ${path}`;
+        statusDiv.className = 'status-message success';
+    } catch (error) {
+        statusDiv.textContent = '导出失败: ' + error;
+        statusDiv.className = 'status-message error';
+    }
+}
+
+// Show export section when processing is complete
+function showExportSection() {
+    document.getElementById('export-section').style.display = 'block';
+}

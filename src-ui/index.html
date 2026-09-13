@@ -24,6 +24,13 @@
             <div class="task-list" id="task-list">
                 <!-- Tasks will be added here -->
             </div>
+            
+            <div id="export-section" style="display: none; margin-top: 20px;">
+                <h3>导出字幕</h3>
+                <button id="export-srt-btn" class="primary-btn">导出 SRT</button>
+                <button id="export-vtt-btn" class="primary-btn">导出 VTT</button>
+                <div id="export-status" class="status-message"></div>
+            </div>
         </div>
 
         <div class="tab-content" id="realtime-tab" style="display: none;">
@@ -57,6 +64,8 @@
                         <option value="ko">韩文</option>
                     </select>
                 </div>
+                <button id="test-asr-btn" class="secondary-btn">测试 ASR 连通性</button>
+                <div id="asr-test-status" class="status-message"></div>
 
                 <h2>翻译配置</h2>
                 <div class="form-group">
@@ -89,6 +98,8 @@
                         <option value="ko">韩文</option>
                     </select>
                 </div>
+                <button id="test-translate-btn" class="secondary-btn">测试翻译连通性</button>
+                <div id="translate-test-status" class="status-message"></div>
 
                 <button id="save-config-btn" class="primary-btn">保存配置</button>
                 <div id="config-status" class="status-message"></div>

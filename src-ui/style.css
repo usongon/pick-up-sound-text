@@ -159,6 +159,24 @@ body {
     background: #0051d5;
 }
 
+.secondary-btn {
+    width: 100%;
+    padding: 10px;
+    background: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-top: 10px;
+}
+
+.secondary-btn:hover {
+    background: #e0e0e0;
+}
+
 .status-message {
     margin-top: 15px;
     padding: 10px;
