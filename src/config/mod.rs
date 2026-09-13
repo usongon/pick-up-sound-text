@@ -1,3 +1,5 @@
+pub mod keystore;
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use crate::{Error, Result};
@@ -58,7 +60,17 @@ impl AppConfig {
             return Ok(Self::default());
         }
         let content = std::fs::read_to_string(&path)?;
-        let config = serde_json::from_str(&content)?;
+        let mut config: AppConfig = serde_json::from_str(&content)?;
+        
+        // Decrypt API keys
+        let keystore = keystore::KeyStore::new()?;
+        if !config.asr.api_key.is_empty() {
+            config.asr.api_key = keystore.decrypt(&config.asr.api_key)?;
+        }
+        if !config.translate.api_key.is_empty() {
+            config.translate.api_key = keystore.decrypt(&config.translate.api_key)?;
+        }
+        
         Ok(config)
     }
 
@@ -67,8 +79,29 @@ impl AppConfig {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let content = serde_json::to_string_pretty(self)?;
+        
+        // Encrypt API keys before saving
+        let keystore = keystore::KeyStore::new()?;
+        let mut config = self.clone();
+        if !config.asr.api_key.is_empty() {
+            config.asr.api_key = keystore.encrypt(&config.asr.api_key)?;
+        }
+        if !config.translate.api_key.is_empty() {
+            config.translate.api_key = keystore.encrypt(&config.translate.api_key)?;
+        }
+        
+        let content = serde_json::to_string_pretty(&config)?;
         std::fs::write(&path, content)?;
+        
+        // Set permissions to 0600 (owner read/write only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&path)?.permissions();
+            perms.set_mode(0o600);
+            std::fs::set_permissions(&path, perms)?;
+        }
+        
         Ok(())
     }
 }
