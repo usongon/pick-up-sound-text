@@ -7,10 +7,11 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::asr::AsrProvider;
+use crate::asr::{AsrConfig, AsrEvent, AsrProvider};
 use crate::audio_source::AudioSource;
-use crate::subtitle::SubtitleEntry;
-use crate::translate::TranslateProvider;
+use crate::error::Error;
+use crate::subtitle::{SubtitleEntry, SubtitleStatus};
+use crate::translate::{TranslateProvider, TranslateRequest};
 use crate::Result;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -50,14 +51,97 @@ impl FilePipeline {
         *state = PipelineState::Processing;
         drop(state);
 
-        // TODO: Implement actual processing logic
-        // 1. Loop: get audio chunk from source
-        // 2. Send to ASR
-        // 3. Get ASR result
-        // 4. De-duplicate overlap against previous entry (see `dedup_overlap`)
-        // 5. Send to translation
-        // 6. Create SubtitleEntry
-        // 7. Save to entries
+        let mut previous_entries: Vec<SubtitleEntry> = Vec::new();
+
+        loop {
+            // Get next audio chunk
+            let chunk = match self.audio_source.next_chunk().await {
+                Ok(chunk) => chunk,
+                Err(Error::AudioSource(msg)) if msg == "End of file" => break,
+                Err(e) => {
+                    let mut state = self.state.lock().await;
+                    *state = PipelineState::Failed;
+                    return Err(e);
+                }
+            };
+
+            // Start ASR stream
+            let asr_config = AsrConfig {
+                provider: "dashscope".to_string(),
+                model: "paraformer-realtime-v2".to_string(),
+                api_key: "".to_string(), // TODO: Get from config
+                language: "auto".to_string(),
+            };
+            let mut asr_stream = self.asr_provider.start_stream(&asr_config).await?;
+
+            // Send audio to ASR
+            asr_stream.send_audio(&chunk.pcm).await?;
+
+            // Process ASR events
+            let mut segment_entries = Vec::new();
+            loop {
+                match asr_stream.next_event().await {
+                    Ok(AsrEvent::Partial { .. }) => {
+                        // Skip partial results for file processing
+                        continue;
+                    }
+                    Ok(AsrEvent::Final { text, ts_start, ts_end }) => {
+                        // Translate the final text
+                        let translate_req = TranslateRequest {
+                            text: text.clone(),
+                            source_lang: "auto".to_string(),
+                            target_lang: "zh".to_string(),
+                            context: previous_entries.iter()
+                                .rev()
+                                .take(10)
+                                .map(|e| e.source.clone())
+                                .collect(),
+                            glossary: None,
+                        };
+                        let translate_resp = self.translate_provider.translate(translate_req).await?;
+
+                        // Create subtitle entry
+                        let entry = SubtitleEntry {
+                            content_start: chunk.content_time_ms as f64 / 1000.0 + ts_start,
+                            content_end: chunk.content_time_ms as f64 / 1000.0 + ts_end,
+                            wall_start: chunk.wall_time_ms + (ts_start * 1000.0) as i64,
+                            wall_end: chunk.wall_time_ms + (ts_end * 1000.0) as i64,
+                            source: text,
+                            translated: translate_resp.translated_text,
+                            status: SubtitleStatus::Final,
+                        };
+                        segment_entries.push(entry);
+                    }
+                    Ok(AsrEvent::Error { code, message }) => {
+                        let mut state = self.state.lock().await;
+                        *state = PipelineState::Failed;
+                        return Err(Error::Asr(format!("{}: {}", code, message)));
+                    }
+                    Err(_) => {
+                        // End of ASR stream for this chunk
+                        break;
+                    }
+                }
+            }
+
+            // De-duplicate overlap with previous segment
+            if !previous_entries.is_empty() && !segment_entries.is_empty() {
+                let last_prev = previous_entries.last().unwrap();
+                let first_curr = segment_entries.first().unwrap();
+                let overlap_text = dedup_overlap(&last_prev.source, &first_curr.source, 50);
+                if !overlap_text.is_empty() {
+                    // Adjust first entry of current segment
+                    segment_entries[0].source = overlap_text;
+                }
+            }
+
+            // Add segment entries to entries
+            let mut entries = self.entries.lock().await;
+            entries.extend(segment_entries.clone());
+            drop(entries);
+
+            previous_entries = segment_entries;
+        }
 
         let mut state = self.state.lock().await;
         *state = PipelineState::Completed;
