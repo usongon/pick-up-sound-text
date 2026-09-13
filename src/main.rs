@@ -8,7 +8,9 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     let app_state = AppState {
-        pipeline: Arc::new(Mutex::new(None)),
+        pipeline_state: Arc::new(Mutex::new(None)),
+        pipeline_entries: Arc::new(Mutex::new(None)),
+        processing_task: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

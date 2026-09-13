@@ -190,6 +190,16 @@ impl FilePipeline {
     pub async fn get_entries(&self) -> Vec<SubtitleEntry> {
         self.entries.lock().await.clone()
     }
+
+    /// Get a clone of the shared state Arc for external monitoring.
+    pub fn state_handle(&self) -> Arc<Mutex<PipelineState>> {
+        self.state.clone()
+    }
+
+    /// Get a clone of the shared entries Arc for external access.
+    pub fn entries_handle(&self) -> Arc<Mutex<Vec<SubtitleEntry>>> {
+        self.entries.clone()
+    }
 }
 
 /// De-duplicate overlap between two consecutive ASR text segments.

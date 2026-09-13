@@ -1,15 +1,18 @@
 use pick_up_sound_text::asr::DashScopeAsrProvider;
 use pick_up_sound_text::audio::FileAudioSource;
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
-use pick_up_sound_text::subtitle::generate_srt;
+use pick_up_sound_text::subtitle::{generate_srt, SubtitleEntry};
 use pick_up_sound_text::translate::OpenAiCompatibleProvider;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 pub struct AppState {
-    pub pipeline: Arc<Mutex<Option<FilePipeline>>>,
+    pub pipeline_state: Arc<Mutex<Option<Arc<Mutex<PipelineState>>>>>,
+    pub pipeline_entries: Arc<Mutex<Option<Arc<Mutex<Vec<SubtitleEntry>>>>>>,
+    pub processing_task: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 #[tauri::command]
@@ -35,38 +38,47 @@ pub async fn start_file_processing(
     };
 
     // Create pipeline
-    let pipeline = FilePipeline::new(
+    let mut pipeline = FilePipeline::new(
         Box::new(audio_source),
         Box::new(asr_provider),
         Box::new(translate_provider),
     );
 
-    // Store pipeline in state
-    let mut pipeline_guard = state.pipeline.lock().await;
-    *pipeline_guard = Some(pipeline);
-    drop(pipeline_guard);
+    // Get shared state handles
+    let state_handle = pipeline.state_handle();
+    let entries_handle = pipeline.entries_handle();
+
+    // Store handles in app state
+    let mut pipeline_state_guard = state.pipeline_state.lock().await;
+    *pipeline_state_guard = Some(state_handle.clone());
+    drop(pipeline_state_guard);
+
+    let mut pipeline_entries_guard = state.pipeline_entries.lock().await;
+    *pipeline_entries_guard = Some(entries_handle.clone());
+    drop(pipeline_entries_guard);
 
     // Start processing in background
-    let pipeline_clone = state.pipeline.clone();
-    tokio::spawn(async move {
-        let mut pipeline_guard = pipeline_clone.lock().await;
-        if let Some(pipeline) = pipeline_guard.as_mut() {
-            if let Err(e) = pipeline.process().await {
-                eprintln!("Pipeline error: {}", e);
-            }
+    let processing_task = tokio::spawn(async move {
+        if let Err(e) = pipeline.process().await {
+            tracing::error!("Pipeline error: {}", e);
         }
     });
+
+    // Store task handle
+    let mut task_guard = state.processing_task.lock().await;
+    *task_guard = Some(processing_task);
+    drop(task_guard);
 
     Ok("Processing started".to_string())
 }
 
 #[tauri::command]
 pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, String> {
-    let pipeline_guard = state.pipeline.lock().await;
+    let pipeline_state_guard = state.pipeline_state.lock().await;
 
-    if let Some(pipeline) = pipeline_guard.as_ref() {
-        let state = pipeline.get_state().await;
-        match state {
+    if let Some(state_handle) = pipeline_state_guard.as_ref() {
+        let pipeline_state = state_handle.lock().await.clone();
+        match pipeline_state {
             PipelineState::Idle => Ok(0.0),
             PipelineState::Processing => {
                 // TODO: Calculate actual progress based on segments
@@ -83,10 +95,10 @@ pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, 
 
 #[tauri::command]
 pub async fn export_subtitle(format: String, state: State<'_, AppState>) -> Result<String, String> {
-    let pipeline_guard = state.pipeline.lock().await;
+    let pipeline_entries_guard = state.pipeline_entries.lock().await;
 
-    if let Some(pipeline) = pipeline_guard.as_ref() {
-        let entries = pipeline.get_entries().await;
+    if let Some(entries_handle) = pipeline_entries_guard.as_ref() {
+        let entries = entries_handle.lock().await.clone();
 
         match format.as_str() {
             "srt" => {
