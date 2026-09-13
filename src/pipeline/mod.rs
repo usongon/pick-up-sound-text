@@ -9,11 +9,13 @@ use tokio::sync::Mutex;
 
 use crate::asr::{AsrConfig, AsrEvent, AsrProvider};
 use crate::audio::AudioSource;
+use crate::checkpoint::{Checkpoint, SegmentProgress, SegmentStatus};
 use crate::config::AppConfig;
 use crate::error::Error;
 use crate::subtitle::{SubtitleEntry, SubtitleStatus};
 use crate::translate::{TranslateProvider, TranslateRequest};
 use crate::Result;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PipelineState {
@@ -31,6 +33,10 @@ pub struct FilePipeline {
     translate_provider: Box<dyn TranslateProvider>,
     entries: Arc<Mutex<Vec<SubtitleEntry>>>,
     config: AppConfig,
+    checkpoint: Option<Checkpoint>,
+    checkpoint_path: Option<PathBuf>,
+    total_segments: usize,
+    completed_segments: usize,
 }
 
 impl FilePipeline {
@@ -47,13 +53,53 @@ impl FilePipeline {
             translate_provider,
             entries: Arc::new(Mutex::new(Vec::new())),
             config,
+            checkpoint: None,
+            checkpoint_path: None,
+            total_segments: 0,
+            completed_segments: 0,
         }
+    }
+    
+    /// Initialize checkpoint for resume from breakpoint
+    pub fn init_checkpoint(&mut self, task_id: String, video_path: PathBuf) -> Result<()> {
+        let checkpoint_dir = dirs::home_dir()
+            .ok_or_else(|| Error::Config("Cannot find home directory".to_string()))?
+            .join("Library/Application Support/pick-up-sound-text/tasks")
+            .join(&task_id);
+        
+        std::fs::create_dir_all(&checkpoint_dir)?;
+        let checkpoint_path = checkpoint_dir.join("progress.jsonl");
+        
+        let checkpoint = if checkpoint_path.exists() {
+            Checkpoint::load(&checkpoint_path)?
+        } else {
+            Checkpoint::new(task_id, video_path)
+        };
+        
+        self.checkpoint = Some(checkpoint);
+        self.checkpoint_path = Some(checkpoint_path);
+        
+        Ok(())
+    }
+    
+    /// Get real progress based on completed segments
+    pub async fn get_progress(&self) -> f64 {
+        if self.total_segments == 0 {
+            return 0.0;
+        }
+        self.completed_segments as f64 / self.total_segments as f64
     }
 
     pub async fn process(&mut self) -> Result<()> {
         let mut state = self.state.lock().await;
         *state = PipelineState::Processing;
         drop(state);
+
+        // Calculate total segments
+        if let Some(total_duration) = self.audio_source.total_duration() {
+            let segment_duration = 600.0; // 10 minutes
+            self.total_segments = (total_duration.as_secs_f64() / segment_duration).ceil() as usize;
+        }
 
         let mut previous_entries: Vec<SubtitleEntry> = Vec::new();
 
@@ -178,6 +224,20 @@ impl FilePipeline {
             entries.extend(segment_entries.iter().cloned());
             drop(entries);
 
+            // Save checkpoint after each segment
+            if let (Some(checkpoint), Some(checkpoint_path)) = (&mut self.checkpoint, &self.checkpoint_path) {
+                let segment_id = self.completed_segments;
+                checkpoint.segments.push(SegmentProgress {
+                    segment_id,
+                    start_time: chunk.content_time_ms as f64 / 1000.0,
+                    end_time: (chunk.content_time_ms as f64 / 1000.0) + 600.0, // 10 minutes
+                    status: SegmentStatus::Completed,
+                    subtitle_file: format!("segment_{}.srt", segment_id),
+                });
+                checkpoint.save(checkpoint_path)?;
+            }
+
+            self.completed_segments += 1;
             previous_entries = segment_entries;
         }
 

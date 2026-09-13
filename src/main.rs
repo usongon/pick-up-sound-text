@@ -15,6 +15,7 @@ fn main() {
         pipeline_entries: Arc::new(Mutex::new(None)),
         processing_task: Arc::new(Mutex::new(None)),
         config: Arc::new(Mutex::new(config)),
+        pipeline: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

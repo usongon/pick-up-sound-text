@@ -15,6 +15,7 @@ pub struct AppState {
     pub pipeline_entries: Arc<Mutex<Option<Arc<Mutex<Vec<SubtitleEntry>>>>>>,
     pub processing_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     pub config: Arc<Mutex<AppConfig>>,
+    pub pipeline: Arc<Mutex<Option<FilePipeline>>>,
 }
 
 #[tauri::command]
@@ -57,7 +58,7 @@ pub async fn start_file_processing(
     };
 
     // Create pipeline
-    let mut pipeline = FilePipeline::new(
+    let pipeline = FilePipeline::new(
         Box::new(audio_source),
         Box::new(asr_provider),
         Box::new(translate_provider),
@@ -77,10 +78,19 @@ pub async fn start_file_processing(
     *pipeline_entries_guard = Some(entries_handle.clone());
     drop(pipeline_entries_guard);
 
+    // Store pipeline reference for progress calculation
+    let mut pipeline_guard = state.pipeline.lock().await;
+    *pipeline_guard = Some(pipeline);
+    drop(pipeline_guard);
+
     // Start processing in background
+    let pipeline_clone = state.pipeline.clone();
     let processing_task = tokio::spawn(async move {
-        if let Err(e) = pipeline.process().await {
-            tracing::error!("Pipeline error: {}", e);
+        let mut pipeline_guard = pipeline_clone.lock().await;
+        if let Some(pipeline) = pipeline_guard.as_mut() {
+            if let Err(e) = pipeline.process().await {
+                tracing::error!("Pipeline error: {}", e);
+            }
         }
     });
 
@@ -101,8 +111,13 @@ pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, 
         match pipeline_state {
             PipelineState::Idle => Ok(0.0),
             PipelineState::Processing => {
-                // TODO: Calculate actual progress based on segments
-                Ok(0.5)
+                // Get real progress from pipeline
+                let pipeline_guard = state.pipeline.lock().await;
+                if let Some(pipeline) = pipeline_guard.as_ref() {
+                    Ok(pipeline.get_progress().await)
+                } else {
+                    Ok(0.0)
+                }
             }
             PipelineState::Completed => Ok(1.0),
             PipelineState::Exported => Ok(1.0),
