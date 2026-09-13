@@ -17,6 +17,7 @@ pub struct AppState {
     pub processing_task: Arc<Mutex<Option<JoinHandle<()>>>>,
     pub config: Arc<Mutex<AppConfig>>,
     pub pipeline: Arc<Mutex<Option<FilePipeline>>>,
+    pub pipeline_progress: Arc<Mutex<Option<Arc<Mutex<f64>>>>>,
 }
 
 #[tauri::command]
@@ -59,16 +60,23 @@ pub async fn start_file_processing(
     };
 
     // Create pipeline
-    let pipeline = FilePipeline::new(
+    let mut pipeline = FilePipeline::new(
         Box::new(audio_source),
         Box::new(asr_provider),
         Box::new(translate_provider),
         config.clone(),
     );
 
+    // Stable task_id from video path so re-processing the same file resumes
+    let task_id = format!("{:x}", md5ish(video_path.to_string_lossy().as_bytes()));
+    pipeline
+        .init_checkpoint(task_id.clone(), video_path.clone())
+        .map_err(|e| e.to_string())?;
+
     // Get shared state handles
     let state_handle = pipeline.state_handle();
     let entries_handle = pipeline.entries_handle();
+    let progress_handle = pipeline.progress_handle();
 
     // Store handles in app state
     let mut pipeline_state_guard = state.pipeline_state.lock().await;
@@ -79,7 +87,11 @@ pub async fn start_file_processing(
     *pipeline_entries_guard = Some(entries_handle.clone());
     drop(pipeline_entries_guard);
 
-    // Store pipeline reference for progress calculation
+    let mut pipeline_progress_guard = state.pipeline_progress.lock().await;
+    *pipeline_progress_guard = Some(progress_handle);
+    drop(pipeline_progress_guard);
+
+    // Store pipeline reference
     let mut pipeline_guard = state.pipeline.lock().await;
     *pipeline_guard = Some(pipeline);
     drop(pipeline_guard);
@@ -100,7 +112,17 @@ pub async fn start_file_processing(
     *task_guard = Some(processing_task);
     drop(task_guard);
 
-    Ok("Processing started".to_string())
+    Ok(task_id)
+}
+
+/// Simple non-cryptographic hash for task_id derivation (FNV-1a).
+fn md5ish(data: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &b in data {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
 }
 
 #[tauri::command]
@@ -110,19 +132,17 @@ pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, 
     if let Some(state_handle) = pipeline_state_guard.as_ref() {
         let pipeline_state = state_handle.lock().await.clone();
         match pipeline_state {
-            PipelineState::Idle => Ok(0.0),
-            PipelineState::Processing => {
-                // Get real progress from pipeline
-                let pipeline_guard = state.pipeline.lock().await;
-                if let Some(pipeline) = pipeline_guard.as_ref() {
-                    Ok(pipeline.get_progress().await)
+            PipelineState::Completed | PipelineState::Exported => Ok(1.0),
+            PipelineState::Failed => Ok(0.0),
+            _ => {
+                let progress_guard = state.pipeline_progress.lock().await;
+                if let Some(progress_handle) = progress_guard.as_ref() {
+                    let p = *progress_handle.lock().await;
+                    Ok(p)
                 } else {
                     Ok(0.0)
                 }
             }
-            PipelineState::Completed => Ok(1.0),
-            PipelineState::Exported => Ok(1.0),
-            PipelineState::Failed => Ok(0.0),
         }
     } else {
         Ok(0.0)
@@ -135,55 +155,32 @@ pub async fn export_subtitle(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let pipeline_entries_guard = state.pipeline_entries.lock().await;
-
-    if let Some(entries_handle) = pipeline_entries_guard.as_ref() {
-        let entries = entries_handle.lock().await.clone();
-
-        match format.as_str() {
-            "srt" => {
-                let srt = generate_srt(&entries);
-                
-                // Use system save dialog
-                let file_path = app.dialog()
-                    .file()
-                    .set_title("Save SRT subtitle")
-                    .set_file_name("output.srt")
-                    .add_filter("SRT Subtitle", &["srt"])
-                    .blocking_save_file();
-                
-                if let Some(path) = file_path {
-                    let path_buf = path.into_path().map_err(|e| e.to_string())?;
-                    std::fs::write(&path_buf, srt)
-                        .map_err(|e| e.to_string())?;
-                    Ok(path_buf.to_string_lossy().to_string())
-                } else {
-                    Err("Save cancelled".to_string())
-                }
-            }
-            "vtt" => {
-                let vtt = generate_vtt(&entries);
-                
-                // Use system save dialog
-                let file_path = app.dialog()
-                    .file()
-                    .set_title("Save VTT subtitle")
-                    .set_file_name("output.vtt")
-                    .add_filter("VTT Subtitle", &["vtt"])
-                    .blocking_save_file();
-                
-                if let Some(path) = file_path {
-                    let path_buf = path.into_path().map_err(|e| e.to_string())?;
-                    std::fs::write(&path_buf, vtt)
-                        .map_err(|e| e.to_string())?;
-                    Ok(path_buf.to_string_lossy().to_string())
-                } else {
-                    Err("Save cancelled".to_string())
-                }
-            }
-            _ => Err(format!("Unsupported format: {}", format)),
+    let entries = {
+        let guard = state.pipeline_entries.lock().await;
+        match guard.as_ref() {
+            Some(handle) => handle.lock().await.clone(),
+            None => return Err("No pipeline available".to_string()),
         }
+    };
+
+    let (content, ext, title) = match format.as_str() {
+        "srt" => (generate_srt(&entries), "srt", "Save SRT subtitle"),
+        "vtt" => (generate_vtt(&entries), "vtt", "Save VTT subtitle"),
+        _ => return Err(format!("Unsupported format: {}", format)),
+    };
+
+    let file_path = app.dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(format!("output.{}", ext))
+        .add_filter(format!("{} Subtitle", ext.to_uppercase()), &[ext])
+        .blocking_save_file();
+
+    if let Some(path) = file_path {
+        let path_buf = path.into_path().map_err(|e| e.to_string())?;
+        std::fs::write(&path_buf, content).map_err(|e| e.to_string())?;
+        Ok(path_buf.to_string_lossy().to_string())
     } else {
-        Err("No pipeline available".to_string())
+        Err("Save cancelled".to_string())
     }
 }

@@ -37,6 +37,7 @@ pub struct FilePipeline {
     checkpoint_path: Option<PathBuf>,
     total_segments: usize,
     completed_segments: usize,
+    progress: Arc<Mutex<f64>>,
 }
 
 impl FilePipeline {
@@ -57,6 +58,7 @@ impl FilePipeline {
             checkpoint_path: None,
             total_segments: 0,
             completed_segments: 0,
+            progress: Arc::new(Mutex::new(0.0)),
         }
     }
     
@@ -84,10 +86,12 @@ impl FilePipeline {
     
     /// Get real progress based on completed segments
     pub async fn get_progress(&self) -> f64 {
-        if self.total_segments == 0 {
-            return 0.0;
-        }
-        self.completed_segments as f64 / self.total_segments as f64
+        *self.progress.lock().await
+    }
+
+    /// Shared progress handle for external polling without locking the pipeline.
+    pub fn progress_handle(&self) -> Arc<Mutex<f64>> {
+        self.progress.clone()
     }
 
     pub async fn process(&mut self) -> Result<()> {
@@ -96,9 +100,28 @@ impl FilePipeline {
         drop(state);
 
         // Calculate total segments
+        let segment_duration = 600.0; // 10 minutes
         if let Some(total_duration) = self.audio_source.total_duration() {
-            let segment_duration = 600.0; // 10 minutes
             self.total_segments = (total_duration.as_secs_f64() / segment_duration).ceil() as usize;
+        }
+
+        // Resume from checkpoint: seek past completed segments
+        if let Some(checkpoint) = &self.checkpoint {
+            let completed = checkpoint
+                .segments
+                .iter()
+                .filter(|s| s.status == SegmentStatus::Completed)
+                .count();
+            if completed > 0 && self.audio_source.supports_seek() {
+                let resume_pos = std::time::Duration::from_secs_f64(completed as f64 * segment_duration);
+                self.audio_source.seek(resume_pos).await?;
+                self.completed_segments = completed;
+                if self.total_segments > 0 {
+                    let mut p = self.progress.lock().await;
+                    *p = completed as f64 / self.total_segments as f64;
+                }
+                tracing::info!("Resuming from segment {} ({}s)", completed, resume_pos.as_secs_f64());
+            }
         }
 
         let mut previous_entries: Vec<SubtitleEntry> = Vec::new();
@@ -124,8 +147,14 @@ impl FilePipeline {
             };
             let mut asr_stream = self.asr_provider.start_stream(&asr_config).await?;
 
-            // Send audio to ASR
-            asr_stream.send_audio(&chunk.pcm).await?;
+            // Send audio in 100ms frames (3200 samples at 16kHz) to stay
+            // within WebSocket message size limits and let the server
+            // process incrementally.
+            const SAMPLES_PER_FRAME: usize = 3200;
+            for frame in chunk.pcm.chunks(SAMPLES_PER_FRAME) {
+                asr_stream.send_audio(frame).await?;
+            }
+            asr_stream.finish().await?;
 
             // Process ASR events
             let mut segment_entries = Vec::new();
@@ -206,7 +235,7 @@ impl FilePipeline {
                     let translate_req = TranslateRequest {
                         text: deduped_text,
                         source_lang: "auto".to_string(),
-                        target_lang: "zh".to_string(),
+                        target_lang: self.config.translate.target_lang.clone(),
                         context: previous_entries.iter()
                             .rev()
                             .take(10)
@@ -227,10 +256,11 @@ impl FilePipeline {
             // Save checkpoint after each segment
             if let (Some(checkpoint), Some(checkpoint_path)) = (&mut self.checkpoint, &self.checkpoint_path) {
                 let segment_id = self.completed_segments;
+                let chunk_duration_secs = chunk.pcm.len() as f64 / 16000.0;
                 checkpoint.segments.push(SegmentProgress {
                     segment_id,
                     start_time: chunk.content_time_ms as f64 / 1000.0,
-                    end_time: (chunk.content_time_ms as f64 / 1000.0) + 600.0, // 10 minutes
+                    end_time: chunk.content_time_ms as f64 / 1000.0 + chunk_duration_secs,
                     status: SegmentStatus::Completed,
                     subtitle_file: format!("segment_{}.srt", segment_id),
                 });
@@ -238,6 +268,10 @@ impl FilePipeline {
             }
 
             self.completed_segments += 1;
+            if self.total_segments > 0 {
+                let mut p = self.progress.lock().await;
+                *p = self.completed_segments as f64 / self.total_segments as f64;
+            }
             previous_entries = segment_entries;
         }
 

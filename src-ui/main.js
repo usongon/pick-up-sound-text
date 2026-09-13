@@ -19,74 +19,57 @@ document.querySelectorAll('.tab').forEach(tab => {
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 
+// Tauri native drag-drop provides real file paths (unlike HTML5 drop)
+window.__TAURI__.event.listen('tauri://drag-drop', (event) => {
+    dropZone.classList.remove('dragover');
+    const paths = event.payload.paths;
+    if (paths.length > 0) {
+        handleFilePath(paths[0]);
+    }
+});
+
+window.__TAURI__.event.listen('tauri://drag-enter', () => {
+    dropZone.classList.add('dragover');
+});
+
+window.__TAURI__.event.listen('tauri://drag-leave', () => {
+    dropZone.classList.remove('dragover');
+});
+
 dropZone.addEventListener('click', () => {
     fileInput.click();
 });
 
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        handleFile(files[0]);
-    }
-});
-
-fileInput.addEventListener('change', (e) => {
+fileInput.addEventListener('change', async (e) => {
     if (e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
-        e.target.value = ''; // Clear value to allow re-selecting same file
+        // File input doesn't provide paths in Tauri; open dialog instead
+        const filePath = await window.__TAURI__.dialog.open({
+            multiple: false,
+            filters: [{
+                name: 'Video',
+                extensions: ['mp4', 'mkv', 'avi', 'mov']
+            }]
+        });
+        if (filePath) {
+            handleFilePath(filePath);
+        }
+        e.target.value = '';
     }
 });
 
-async function handleFile(file) {
-    console.log('File selected:', file.name);
+async function handleFilePath(filePath) {
+    console.log('File selected:', filePath);
 
     try {
-        let filePath;
-        
-        // If file has a path property (from Tauri drag-drop), use it directly
-        if (file.path) {
-            filePath = file.path;
-        } else {
-            // Otherwise, use Tauri Dialog API to get file path
-            filePath = await window.__TAURI__.dialog.open({
-                multiple: false,
-                filters: [{
-                    name: 'Video',
-                    extensions: ['mp4', 'mkv', 'avi', 'mov']
-                }]
-            });
-        }
+        const displayName = filePath.split('/').pop() || filePath.split('\\').pop();
 
-        if (!filePath) {
-            return; // User cancelled
-        }
-
-        // Extract display name from path
-        const displayName = filePath.split('/').pop() || filePath.split('\\').pop() || file.name;
-
-        // Call Tauri command to start processing
         const result = await window.__TAURI__.invoke('start_file_processing', {
             videoPath: filePath
         });
 
-        console.log('Processing started:', result);
+        console.log('Processing started, task:', result);
 
-        // Add task to list with correct display name
         addTaskToList(displayName);
-
-        // Start polling progress
         startProgressPolling();
     } catch (error) {
         console.error('Error:', error);

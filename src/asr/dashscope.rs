@@ -66,7 +66,7 @@ impl AsrProvider for DashScopeAsrProvider {
                             if let Some(event) = json["header"]["event"].as_str() {
                                 match event {
                                     "task-started" => {
-                                        let _ = tx.send(Ok(AsrEvent::EndOfStream)).await; // Signal ready
+                                        // Task is ready to receive audio; no event needed.
                                     }
                                     "result-generated" => {
                                         if let Some(sentence) = json["payload"]["output"]["sentence"].as_object() {
@@ -132,7 +132,6 @@ impl AsrProvider for DashScopeAsrProvider {
 struct DashScopeAsrStream {
     write: futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>,
     rx: mpsc::Receiver<Result<AsrEvent>>,
-    #[allow(dead_code)]
     task_id: String,
 }
 
@@ -156,12 +155,22 @@ impl AsrStream for DashScopeAsrStream {
         self.rx.recv().await
             .ok_or_else(|| Error::Asr("WebSocket channel closed".to_string()))?
     }
-}
 
-impl Drop for DashScopeAsrStream {
-    fn drop(&mut self) {
-        // Note: Cannot send finish-task in Drop because it's not async
-        // The WebSocket will be closed when the stream is dropped
-        // In a production implementation, we would send finish-task before dropping
+    async fn finish(&mut self) -> Result<()> {
+        let finish_task = json!({
+            "header": {
+                "action": "finish-task",
+                "task_id": self.task_id,
+                "streaming": "duplex"
+            },
+            "payload": {
+                "input": {}
+            }
+        });
+        self.write
+            .send(Message::Text(finish_task.to_string()))
+            .await
+            .map_err(|e| Error::Asr(format!("Failed to send finish-task: {}", e)))?;
+        Ok(())
     }
 }

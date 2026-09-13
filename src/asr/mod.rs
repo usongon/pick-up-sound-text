@@ -41,4 +41,8 @@ pub trait AsrProvider: Send + Sync {
 pub trait AsrStream: Send + Sync {
     async fn send_audio(&mut self, pcm: &[i16]) -> Result<()>;
     async fn next_event(&mut self) -> Result<AsrEvent>;
+    /// Signal that no more audio will be sent. Implementations should
+    /// notify the server (e.g. DashScope `finish-task`) so it can emit
+    /// final results and close the task.
+    async fn finish(&mut self) -> Result<()>;
 }

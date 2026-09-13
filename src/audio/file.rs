@@ -75,10 +75,10 @@ impl FileAudioSource {
 
         let output = Command::new("ffmpeg")
             .args(&[
-                "-i",
-                path_str,
                 "-ss",
                 &format!("{:.3}", start.as_secs_f64()),
+                "-i",
+                path_str,
                 "-t",
                 &format!("{:.3}", duration.as_secs_f64()),
                 "-vn",

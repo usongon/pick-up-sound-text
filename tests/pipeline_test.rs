@@ -83,6 +83,10 @@ impl AsrStream for MockAsrStream {
         self.index += 1;
         Ok(event)
     }
+
+    async fn finish(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
 
 // Mock Translate Provider
