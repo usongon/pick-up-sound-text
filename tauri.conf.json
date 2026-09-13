@@ -5,7 +5,6 @@
   "identifier": "com.usongon.pick-up-sound-text",
   "build": {
     "beforeDevCommand": "",
-    "devUrl": "file:///Users/usongon/usong_code_project/pick-up-sound-text/src-ui/index.html",
     "beforeBuildCommand": "",
     "frontendDist": "../src-ui"
   },
