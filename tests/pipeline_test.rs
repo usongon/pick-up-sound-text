@@ -127,6 +127,7 @@ async fn test_pipeline_process_with_mock() {
         Box::new(MockAsrProvider),
         Box::new(MockTranslateProvider),
         AppConfig::default(),
+        "auto".to_string(),
     );
 
     assert_eq!(pipeline.get_state().await, PipelineState::Idle);

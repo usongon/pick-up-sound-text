@@ -9,16 +9,26 @@ pub struct AsrConfig {
     pub provider: String,
     pub model: String,
     pub api_key: String,
-    pub language: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslateConfig {
     pub provider: String,
-    pub base_url: String,
     pub model: String,
     pub api_key: String,
     pub target_lang: String,
+}
+
+/// Preset base_url and default model for known translate providers.
+/// Returns (base_url, default_model).
+pub fn translate_provider_preset(provider: &str) -> (&'static str, &'static str) {
+    match provider {
+        "openai" => ("https://api.openai.com/v1", "gpt-3.5-turbo"),
+        "dashscope" => ("https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-turbo"),
+        "deepseek" => ("https://api.deepseek.com/v1", "deepseek-chat"),
+        "kimi" => ("https://api.moonshot.cn/v1", "moonshot-v1-8k"),
+        _ => ("https://api.openai.com/v1", "gpt-3.5-turbo"),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,11 +44,9 @@ impl Default for AppConfig {
                 provider: "dashscope".to_string(),
                 model: "paraformer-realtime-v2".to_string(),
                 api_key: "".to_string(),
-                language: "auto".to_string(),
             },
             translate: TranslateConfig {
                 provider: "openai".to_string(),
-                base_url: "https://api.openai.com/v1".to_string(),
                 model: "gpt-3.5-turbo".to_string(),
                 api_key: "".to_string(),
                 target_lang: "zh".to_string(),

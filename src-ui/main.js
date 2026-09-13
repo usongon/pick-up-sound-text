@@ -57,25 +57,38 @@ fileInput.addEventListener('change', async (e) => {
     }
 });
 
+let pendingFilePath = null;
+
 async function handleFilePath(filePath) {
     console.log('File selected:', filePath);
+    pendingFilePath = filePath;
+
+    // Show language selection + start button
+    document.getElementById('file-config').style.display = 'block';
+}
+
+document.getElementById('start-processing-btn').addEventListener('click', async () => {
+    if (!pendingFilePath) return;
+
+    const sourceLanguage = document.getElementById('source-language').value;
+    const displayName = pendingFilePath.split('/').pop() || pendingFilePath.split('\\').pop();
 
     try {
-        const displayName = filePath.split('/').pop() || filePath.split('\\').pop();
-
         const result = await window.__TAURI__.invoke('start_file_processing', {
-            videoPath: filePath
+            videoPath: pendingFilePath,
+            sourceLanguage: sourceLanguage,
         });
 
         console.log('Processing started, task:', result);
 
+        document.getElementById('file-config').style.display = 'none';
         addTaskToList(displayName);
         startProgressPolling();
     } catch (error) {
         console.error('Error:', error);
         alert('Error: ' + error);
     }
-}
+});
 
 function addTaskToList(fileName) {
     const taskList = document.getElementById('task-list');
@@ -137,11 +150,9 @@ async function loadConfig() {
         document.getElementById('asr-provider').value = config.asr.provider;
         document.getElementById('asr-model').value = config.asr.model;
         document.getElementById('asr-api-key').value = config.asr.api_key;
-        document.getElementById('asr-language').value = config.asr.language;
         
         // Translate config
         document.getElementById('translate-provider').value = config.translate.provider;
-        document.getElementById('translate-base-url').value = config.translate.base_url;
         document.getElementById('translate-model').value = config.translate.model;
         document.getElementById('translate-api-key').value = config.translate.api_key;
         document.getElementById('translate-target-lang').value = config.translate.target_lang;
@@ -159,11 +170,9 @@ async function saveConfig() {
                 provider: document.getElementById('asr-provider').value,
                 model: document.getElementById('asr-model').value,
                 api_key: document.getElementById('asr-api-key').value,
-                language: document.getElementById('asr-language').value,
             },
             translate: {
                 provider: document.getElementById('translate-provider').value,
-                base_url: document.getElementById('translate-base-url').value,
                 model: document.getElementById('translate-model').value,
                 api_key: document.getElementById('translate-api-key').value,
                 target_lang: document.getElementById('translate-target-lang').value,
@@ -191,6 +200,20 @@ document.querySelector('[data-tab="settings"]').addEventListener('click', () => 
 
 // Save config button
 document.getElementById('save-config-btn').addEventListener('click', saveConfig);
+
+// Auto-fill default model when translate provider changes
+const PROVIDER_DEFAULTS = {
+    'openai': 'gpt-3.5-turbo',
+    'dashscope': 'qwen-turbo',
+    'deepseek': 'deepseek-chat',
+    'kimi': 'moonshot-v1-8k',
+};
+document.getElementById('translate-provider').addEventListener('change', (e) => {
+    const defaultModel = PROVIDER_DEFAULTS[e.target.value];
+    if (defaultModel) {
+        document.getElementById('translate-model').value = defaultModel;
+    }
+});
 
 // Test ASR connection button
 document.getElementById('test-asr-btn').addEventListener('click', async () => {

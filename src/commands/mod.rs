@@ -1,6 +1,6 @@
 use pick_up_sound_text::asr::DashScopeAsrProvider;
 use pick_up_sound_text::audio::FileAudioSource;
-use pick_up_sound_text::config::AppConfig;
+use pick_up_sound_text::config::{AppConfig, translate_provider_preset};
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
 use pick_up_sound_text::subtitle::{generate_srt, generate_vtt, SubtitleEntry};
 use pick_up_sound_text::translate::OpenAiCompatibleProvider;
@@ -37,6 +37,7 @@ pub async fn save_config(config: AppConfig, state: State<'_, AppState>) -> Resul
 #[tauri::command]
 pub async fn start_file_processing(
     video_path: String,
+    source_language: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let video_path = PathBuf::from(video_path);
@@ -52,9 +53,10 @@ pub async fn start_file_processing(
     // Create ASR provider
     let asr_provider = DashScopeAsrProvider;
 
-    // Create translate provider
+    // Create translate provider using preset base_url
+    let (base_url, _) = translate_provider_preset(&config.translate.provider);
     let translate_provider = OpenAiCompatibleProvider {
-        base_url: config.translate.base_url.clone(),
+        base_url: base_url.to_string(),
         model: config.translate.model.clone(),
         api_key: config.translate.api_key.clone(),
     };
@@ -65,6 +67,7 @@ pub async fn start_file_processing(
         Box::new(asr_provider),
         Box::new(translate_provider),
         config.clone(),
+        source_language,
     );
 
     // Stable task_id from video path so re-processing the same file resumes

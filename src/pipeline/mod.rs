@@ -33,6 +33,7 @@ pub struct FilePipeline {
     translate_provider: Box<dyn TranslateProvider>,
     entries: Arc<Mutex<Vec<SubtitleEntry>>>,
     config: AppConfig,
+    source_language: String,
     checkpoint: Option<Checkpoint>,
     checkpoint_path: Option<PathBuf>,
     total_segments: usize,
@@ -46,6 +47,7 @@ impl FilePipeline {
         asr_provider: Box<dyn AsrProvider>,
         translate_provider: Box<dyn TranslateProvider>,
         config: AppConfig,
+        source_language: String,
     ) -> Self {
         Self {
             state: Arc::new(Mutex::new(PipelineState::Idle)),
@@ -54,6 +56,7 @@ impl FilePipeline {
             translate_provider,
             entries: Arc::new(Mutex::new(Vec::new())),
             config,
+            source_language,
             checkpoint: None,
             checkpoint_path: None,
             total_segments: 0,
@@ -143,7 +146,7 @@ impl FilePipeline {
                 provider: self.config.asr.provider.clone(),
                 model: self.config.asr.model.clone(),
                 api_key: self.config.asr.api_key.clone(),
-                language: self.config.asr.language.clone(),
+                language: self.source_language.clone(),
             };
             let mut asr_stream = self.asr_provider.start_stream(&asr_config).await?;
 
