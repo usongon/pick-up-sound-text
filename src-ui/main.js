@@ -45,30 +45,91 @@ dropZone.addEventListener('drop', (e) => {
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         handleFile(e.target.files[0]);
+        e.target.value = ''; // Clear value to allow re-selecting same file
     }
 });
 
 async function handleFile(file) {
     console.log('File selected:', file.name);
 
-    // TODO: Call Tauri command to start processing
-    // const result = await window.__TAURI__.invoke('start_file_processing', {
-    //     videoPath: file.path
-    // });
+    try {
+        // Use Tauri Dialog API to get file path
+        const filePath = await window.__TAURI__.dialog.open({
+            multiple: false,
+            filters: [{
+                name: 'Video',
+                extensions: ['mp4', 'mkv', 'avi', 'mov']
+            }]
+        });
 
-    // Add task to list
-    addTaskToList(file.name);
+        if (!filePath) {
+            return; // User cancelled
+        }
+
+        // Call Tauri command to start processing
+        const result = await window.__TAURI__.invoke('start_file_processing', {
+            videoPath: filePath
+        });
+
+        console.log('Processing started:', result);
+
+        // Add task to list
+        addTaskToList(file.name);
+
+        // Start polling progress
+        startProgressPolling();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error: ' + error);
+    }
 }
 
 function addTaskToList(fileName) {
     const taskList = document.getElementById('task-list');
     const taskItem = document.createElement('div');
     taskItem.className = 'task-item';
-    taskItem.innerHTML = `
-        <div>📹 ${fileName}</div>
-        <div class="task-progress">
-            <div class="task-progress-bar" style="width: 0%"></div>
-        </div>
-    `;
+
+    const fileNameDiv = document.createElement('div');
+    fileNameDiv.textContent = `📹 ${fileName}`; // Use textContent instead of innerHTML
+
+    const progressDiv = document.createElement('div');
+    progressDiv.className = 'task-progress';
+
+    const progressBar = document.createElement('div');
+    progressBar.className = 'task-progress-bar';
+    progressBar.style.width = '0%';
+
+    progressDiv.appendChild(progressBar);
+    taskItem.appendChild(fileNameDiv);
+    taskItem.appendChild(progressDiv);
     taskList.appendChild(taskItem);
+}
+
+let progressInterval = null;
+
+function startProgressPolling() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+
+    progressInterval = setInterval(async () => {
+        try {
+            const progress = await window.__TAURI__.invoke('get_processing_progress');
+            updateProgress(progress);
+
+            if (progress >= 1.0) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        } catch (error) {
+            console.error('Progress polling error:', error);
+        }
+    }, 1000); // Poll every second
+}
+
+function updateProgress(progress) {
+    const progressBars = document.querySelectorAll('.task-progress-bar');
+    progressBars.forEach(bar => {
+        bar.style.width = `${progress * 100}%`;
+    });
 }
