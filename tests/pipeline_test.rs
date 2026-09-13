@@ -1,5 +1,5 @@
 use pick_up_sound_text::asr::{AsrConfig, AsrEvent, AsrProvider, AsrStream};
-use pick_up_sound_text::audio_source::{AudioChunk, AudioSource};
+use pick_up_sound_text::audio::{AudioChunk, AudioSource};
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
 use pick_up_sound_text::subtitle::SubtitleStatus;
 use pick_up_sound_text::translate::{TranslateProvider, TranslateRequest, TranslateResponse};

@@ -1,3 +1,7 @@
+pub mod dashscope;
+
+pub use dashscope::DashScopeAsrProvider;
+
 use crate::Result;
 use async_trait::async_trait;
 

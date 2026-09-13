@@ -1,4 +1,4 @@
-use pick_up_sound_text::audio_source::{AudioChunk, AudioSource};
+use pick_up_sound_text::audio::{AudioChunk, AudioSource};
 use std::time::Duration;
 
 #[tokio::test]

@@ -2272,7 +2272,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
  "tokio",
  "tracing",
  "tracing-subscriber",

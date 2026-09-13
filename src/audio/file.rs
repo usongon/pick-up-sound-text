@@ -1,4 +1,4 @@
-use crate::audio_source::{AudioChunk, AudioSource};
+use crate::audio::{AudioChunk, AudioSource};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use std::path::PathBuf;

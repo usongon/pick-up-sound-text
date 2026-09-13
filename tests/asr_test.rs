@@ -1,6 +1,6 @@
 use pick_up_sound_text::asr::AsrProvider;
 use pick_up_sound_text::asr::{AsrConfig, AsrEvent};
-use pick_up_sound_text::asr_dashscope::DashScopeAsrProvider;
+use pick_up_sound_text::asr::dashscope::DashScopeAsrProvider;
 
 #[tokio::test]
 async fn test_dashscope_provider_creation() {

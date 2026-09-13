@@ -1,3 +1,7 @@
+pub mod openai;
+
+pub use openai::OpenAiCompatibleProvider;
+
 use crate::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

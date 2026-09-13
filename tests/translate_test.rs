@@ -1,5 +1,5 @@
 use pick_up_sound_text::translate::{TranslateProvider, TranslateRequest};
-use pick_up_sound_text::translate_openai::OpenAiCompatibleProvider;
+use pick_up_sound_text::translate::openai::OpenAiCompatibleProvider;
 
 #[tokio::test]
 async fn test_openai_provider_creation() {

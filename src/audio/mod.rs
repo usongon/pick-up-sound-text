@@ -1,3 +1,7 @@
+pub mod file;
+
+pub use file::FileAudioSource;
+
 use crate::Result;
 use async_trait::async_trait;
 use std::time::Duration;

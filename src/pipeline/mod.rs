@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::asr::{AsrConfig, AsrEvent, AsrProvider};
-use crate::audio_source::AudioSource;
+use crate::audio::AudioSource;
 use crate::error::Error;
 use crate::subtitle::{SubtitleEntry, SubtitleStatus};
 use crate::translate::{TranslateProvider, TranslateRequest};
