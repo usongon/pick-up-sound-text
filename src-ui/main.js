@@ -53,18 +53,28 @@ async function handleFile(file) {
     console.log('File selected:', file.name);
 
     try {
-        // Use Tauri Dialog API to get file path
-        const filePath = await window.__TAURI__.dialog.open({
-            multiple: false,
-            filters: [{
-                name: 'Video',
-                extensions: ['mp4', 'mkv', 'avi', 'mov']
-            }]
-        });
+        let filePath;
+        
+        // If file has a path property (from Tauri drag-drop), use it directly
+        if (file.path) {
+            filePath = file.path;
+        } else {
+            // Otherwise, use Tauri Dialog API to get file path
+            filePath = await window.__TAURI__.dialog.open({
+                multiple: false,
+                filters: [{
+                    name: 'Video',
+                    extensions: ['mp4', 'mkv', 'avi', 'mov']
+                }]
+            });
+        }
 
         if (!filePath) {
             return; // User cancelled
         }
+
+        // Extract display name from path
+        const displayName = filePath.split('/').pop() || filePath.split('\\').pop() || file.name;
 
         // Call Tauri command to start processing
         const result = await window.__TAURI__.invoke('start_file_processing', {
@@ -73,8 +83,8 @@ async function handleFile(file) {
 
         console.log('Processing started:', result);
 
-        // Add task to list
-        addTaskToList(file.name);
+        // Add task to list with correct display name
+        addTaskToList(displayName);
 
         // Start polling progress
         startProgressPolling();
