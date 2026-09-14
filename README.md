@@ -1,101 +1,107 @@
-# Shiyane (拾言)
+# 拾言 (Shiyane)
 
-A cross-platform desktop app that turns video files into translated subtitles. Drop a video, pick the language, export an SRT/VTT file with bilingual lines.
+视频转双语字幕工具：拖入视频文件，自动提取音频、语音识别、翻译，导出带原文和译文的 SRT/VTT 字幕。
 
-[中文文档](README.zh-CN.md)
+[English](README.en.md)
 
-## How it works
+## 工作流程
 
-1. **Drop a video file** (mp4, mkv, avi, mov, ...)
-2. **Pick the source language** (or auto-detect)
-3. **Audio is extracted** locally via ffmpeg
-4. **Speech recognition** — the audio is uploaded to your own OSS bucket and transcribed by [Alibaba Cloud Bailian](https://bailian.console.aliyun.com/) `qwen-audio-3.0-asr-flash-filetrans` (async task, up to 12h / 2GB per file)
-5. **Translation** — each sentence is translated via any OpenAI-compatible API (OpenAI, DashScope, DeepSeek, Kimi, ...)
-6. **Export** — SRT or VTT with both source and translated text
+1. **拖入视频文件**（支持 mp4、mkv、avi、mov 等格式）
+2. **选择视频语言**（或自动识别）
+3. **本地提取音频** — 通过 ffmpeg
+4. **语音识别** — 音频上传到你自己的 OSS Bucket，由[阿里云百炼](https://bailian.console.aliyun.com/) `qwen-audio-3.0-asr-flash-filetrans` 异步转写（单视频最长 3 小时，提取音频最大 5GB）
+5. **翻译** — 逐句调用任何 OpenAI 兼容 API（OpenAI、百炼、DeepSeek、Kimi 等）
+6. **导出** — SRT 或 VTT，包含原文与译文
 
-## Features
+## 特性
 
-- **File-to-subtitle pipeline** — drag & drop or file picker, live progress with per-sentence granularity, clear success/failure states with error messages
-- **Real connectivity tests** — validate ASR / translate / OSS settings before saving
-- **BYOK** — API keys are encrypted locally (AES-256-GCM + Argon2), only ever sent to the respective API
-- **Private-by-default audio handling** — audio is uploaded to your own OSS bucket via signed URLs and deleted once transcription finishes
-- **Separate file/realtime ASR models** — `qwen-audio-3.0-asr-flash-filetrans` for file transcription, `qwen-audio-3.0-asr-flash` reserved for the realtime mode
-- **Cross-platform** — macOS, Windows, Linux (Tauri 2.0)
+- **文件转字幕流水线** — 拖拽或点击选择，逐句实时进度，成功/失败状态与错误信息明确展示
+- **真实连通性测试** — 保存前即可验证 ASR / 翻译 / OSS 配置是否可用
+- **BYOK（自带密钥）** — API Key 本地加密存储（AES-256-GCM + Argon2），只发送到对应 API
+- **音频隐私优先** — 音频通过签名 URL 上传到你自己的 OSS Bucket，转写完成后自动删除
+- **文件/实时 ASR 模型分开配置** — 文件转写用 `qwen-audio-3.0-asr-flash-filetrans`，实时模式预留 `qwen-audio-3.0-asr-flash`
+- **跨平台** — macOS、Windows、Linux（基于 Tauri 2.0）
 
-## Prerequisites
+## 前置要求
 
-- [ffmpeg](https://ffmpeg.org/) and ffprobe on `PATH`
-  - macOS: `brew install ffmpeg`
-  - Ubuntu: `sudo apt install ffmpeg`
-  - Windows: download from https://ffmpeg.org/download.html
-- A [Bailian](https://bailian.console.aliyun.com/) API key (Beijing region)
-- An Alibaba Cloud [OSS](https://oss.console.aliyun.com/) bucket (private is fine) with a RAM AccessKey that can read/write it
+- 安装 **ffmpeg** 和 **ffprobe** 并加入 `PATH`
+  ```bash
+  # macOS
+  brew install ffmpeg
 
-## Build from source
+  # Ubuntu
+  sudo apt install ffmpeg
+
+  # Windows：从 https://ffmpeg.org/download.html 下载
+  ```
+- 一个[百炼](https://bailian.console.aliyun.com/) API Key（北京区域）
+- 一个阿里云 [OSS](https://oss.console.aliyun.com/) Bucket（私有即可）及具有读写权限的 RAM AccessKey
+
+## 从源码构建
 
 ```bash
-# Install Rust (2024 edition)
+# 安装 Rust（2024 edition）
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Install Tauri CLI
+# 安装 Tauri CLI
 cargo install tauri-cli
 
-# Clone and build
+# 克隆并构建
 git clone https://github.com/usongon/shiyane.git
 cd shiyane
 cargo tauri build
 ```
 
-The built app is in `target/release/bundle/`.
+构建产物在 `target/release/bundle/` 目录下。
 
-## Development
+## 开发模式
 
 ```bash
 cargo tauri dev
 ```
 
-## Configuration
+## 配置说明
 
-Open the **Settings** tab:
+打开应用的**设置**页：
 
-| Field | Description |
-|-------|-------------|
-| **File transcription model** | Default `qwen-audio-3.0-asr-flash-filetrans` |
-| **Realtime model** | Default `qwen-audio-3.0-asr-flash` (for realtime mode) |
-| **ASR API Key** | Bailian API key |
-| **Workspace ID** | Bailian workspace ID (required for Beijing region; console top-right) |
-| **Translate Provider** | OpenAI / DashScope / DeepSeek / Kimi |
-| **Translate Model** | Auto-filled per provider, editable |
-| **Translate API Key** | Translation API key |
-| **Target Language** | zh / en / ja / ko |
-| **OSS Endpoint** | e.g. `oss-cn-hangzhou.aliyuncs.com` |
-| **OSS Bucket / AK ID / AK Secret** | Your bucket and credentials |
-| **OSS Path Prefix** | Optional, e.g. `shiyane-temp/` |
+| 字段 | 说明 |
+|------|------|
+| **文件转写模型** | 默认 `qwen-audio-3.0-asr-flash-filetrans` |
+| **实时识别模型** | 默认 `qwen-audio-3.0-asr-flash`（供实时模式使用） |
+| **ASR API Key** | 百炼 API Key |
+| **业务空间 ID** | 百炼 Workspace ID（北京区域必填，控制台右上角获取） |
+| **翻译渠道** | OpenAI / 百炼 / DeepSeek / Kimi |
+| **翻译模型** | 根据渠道自动填充，可修改 |
+| **翻译 API Key** | 翻译 API Key |
+| **目标语言** | 中文 / 英文 / 日文 / 韩文 |
+| **OSS Endpoint** | 例如 `oss-cn-hangzhou.aliyuncs.com` |
+| **OSS Bucket / AK ID / AK Secret** | 你的 Bucket 与访问凭证 |
+| **OSS 路径前缀** | 可选，例如 `shiyane-temp/` |
 
-API keys are stored encrypted at `~/Library/Application Support/pick-up-sound-text/config.json` (0600 permissions).
+API Key 加密存储在 `~/Library/Application Support/pick-up-sound-text/config.json`（0600 权限）。
 
-## Architecture
+## 架构
 
 ```
 src/
-├── asr/          # FileAsrProvider (async transcription) + DashScope realtime WebSocket client
-├── audio/        # AudioSource trait + FileAudioSource (ffmpeg extraction)
-├── oss/          # OSS uploader with HMAC-SHA1 signed URLs
-├── translate/    # TranslateProvider trait + OpenAI-compatible HTTP client
-├── pipeline/     # FilePipeline: extract → transcribe → translate → entries
-├── subtitle/     # SubtitleEntry, SRT/VTT generation
-├── config/       # AppConfig + encrypted keystore
-└── commands/     # Tauri commands (frontend ↔ backend)
+├── asr/          # 文件转写抽象（异步任务）+ 百炼实时 WebSocket 客户端
+├── audio/        # 音频源抽象 + 文件音频源（ffmpeg 提取）
+├── oss/          # OSS 上传 + HMAC-SHA1 签名 URL
+├── translate/    # 翻译抽象 + OpenAI 兼容 HTTP 客户端
+├── pipeline/     # 流水线：提取 → 转写 → 翻译 → 字幕条目
+├── subtitle/     # 字幕条目、SRT/VTT 生成
+├── config/       # 配置管理 + 加密密钥存储
+└── commands/     # Tauri 命令（前端 ↔ 后端）
 ```
 
-## Tech stack
+## 技术栈
 
-- **Backend**: Rust 2024, Tauri 2.0, tokio, reqwest, tokio-tungstenite
-- **Frontend**: Vanilla HTML/CSS/JS (no framework)
-- **ASR**: Bailian async file transcription API (submit → poll → download)
-- **Translation**: OpenAI-compatible Chat Completions API
-- **Audio**: ffmpeg (16kHz mono PCM WAV)
+- **后端**：Rust 2024、Tauri 2.0、tokio、reqwest、tokio-tungstenite
+- **前端**：原生 HTML/CSS/JS（无框架）
+- **ASR**：百炼异步文件转写 API（提交 → 轮询 → 下载）
+- **翻译**：OpenAI 兼容 Chat Completions API
+- **音频**：ffmpeg（16kHz 单声道 PCM WAV）
 
-## License
+## 许可证
 
 MIT

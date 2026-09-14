@@ -102,6 +102,20 @@ impl FilePipeline {
         *state = PipelineState::Processing;
         drop(state);
 
+        // Duration limit: min(upstream transcription limit, 3h)
+        const MAX_DURATION_SECS: f64 = 3.0 * 3600.0;
+        if let Some(total) = self.audio_source.total_duration() {
+            if total.as_secs_f64() > MAX_DURATION_SECS {
+                let msg = format!(
+                    "视频时长 {:.1} 小时超过限制（最长 3 小时），请先裁剪后再处理",
+                    total.as_secs_f64() / 3600.0
+                );
+                let mut state = self.state.lock().await;
+                *state = PipelineState::Failed(msg.clone());
+                return Err(Error::AudioSource(msg));
+            }
+        }
+
         // Check if already completed via checkpoint
         if let Some(checkpoint) = &self.checkpoint {
             let completed = checkpoint
@@ -109,7 +123,7 @@ impl FilePipeline {
                 .iter()
                 .filter(|s| s.status == SegmentStatus::Completed)
                 .count();
-            
+
             if completed > 0 {
                 tracing::info!("Found {} completed segments in checkpoint, but file transcription is atomic - starting fresh", completed);
             }
@@ -125,8 +139,22 @@ impl FilePipeline {
                 return Err(e);
             }
         };
-        
+
         tracing::info!("Audio extracted to: {:?}", audio_path);
+
+        // Audio size limit: min(OSS simple-upload max 5GB, 50GB)
+        const MAX_AUDIO_BYTES: u64 = 5 * 1024 * 1024 * 1024;
+        let audio_size = std::fs::metadata(&audio_path).map(|m| m.len()).unwrap_or(0);
+        if audio_size > MAX_AUDIO_BYTES {
+            let _ = std::fs::remove_file(&audio_path);
+            let msg = format!(
+                "提取的音频文件大小 {:.1}GB 超过限制（最大 5GB）",
+                audio_size as f64 / 1024.0 / 1024.0 / 1024.0
+            );
+            let mut state = self.state.lock().await;
+            *state = PipelineState::Failed(msg.clone());
+            return Err(Error::AudioSource(msg));
+        }
 
         // Prepare ASR config
         let asr_config = AsrConfig {
