@@ -1,0 +1,64 @@
+import { createContext } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
+import type { AppConfig, ProgressInfo } from "./types";
+import { mockBackend } from "./mock";
+
+export interface DragHandlers {
+  onEnter?: () => void;
+  onLeave?: () => void;
+  onDrop?: (paths: string[]) => void;
+}
+
+export interface Backend {
+  readonly mocked: boolean;
+  getConfig(): Promise<AppConfig>;
+  saveConfig(config: AppConfig): Promise<void>;
+  startFileProcessing(videoPath: string, sourceLanguage: string): Promise<string>;
+  getProcessingProgress(): Promise<ProgressInfo>;
+  exportSubtitle(format: "srt" | "vtt"): Promise<string>;
+  testAsrConnection(config: AppConfig): Promise<string>;
+  testTranslateConnection(config: AppConfig): Promise<string>;
+  pickVideoFile(): Promise<string | null>;
+  onDragEvent(handlers: DragHandlers): Promise<() => void>;
+}
+
+export const BackendContext = createContext<Backend>(mockBackend);
+
+const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+const tauriBackend: Backend = {
+  mocked: false,
+  getConfig: () => invoke<AppConfig>("get_config"),
+  saveConfig: (config) => invoke<void>("save_config", { config }),
+  startFileProcessing: (videoPath, sourceLanguage) =>
+    invoke<string>("start_file_processing", { videoPath, sourceLanguage }),
+  getProcessingProgress: () => invoke<ProgressInfo>("get_processing_progress"),
+  exportSubtitle: (format) => invoke<string>("export_subtitle", { format }),
+  testAsrConnection: (config) => invoke<string>("test_asr_connection", { config }),
+  testTranslateConnection: (config) =>
+    invoke<string>("test_translate_connection", { config }),
+  pickVideoFile: async () => {
+    const path = await open({
+      multiple: false,
+      filters: [{ name: "视频", extensions: ["mp4", "mkv", "avi", "mov"] }],
+    });
+    return typeof path === "string" ? path : null;
+  },
+  onDragEvent: async (handlers) => {
+    const unlistens = await Promise.all([
+      listen<{ paths: string[] }>("tauri://drag-drop", (e) =>
+        handlers.onDrop?.(e.payload?.paths ?? []),
+      ),
+      listen("tauri://drag-enter", () => handlers.onEnter?.()),
+      listen("tauri://drag-leave", () => handlers.onLeave?.()),
+    ]);
+    return () => unlistens.forEach((u) => u());
+  },
+};
+
+export function getBackend(): Backend {
+  return isTauri ? tauriBackend : mockBackend;
+}
