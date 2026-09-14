@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.usongon.shiyane",
   "build": {
-    "beforeDevCommand": { "script": "npm run dev", "cwd": "src-ui" },
-    "beforeBuildCommand": { "script": "npm run build", "cwd": "src-ui" },
+    "beforeDevCommand": { "script": "npm install && npm run dev", "cwd": "src-ui" },
+    "beforeBuildCommand": { "script": "npm install && npm run build", "cwd": "src-ui" },
     "devUrl": "http://localhost:5173",
     "frontendDist": "./src-ui/dist"
   },

@@ -16,6 +16,7 @@ import {
   DownloadOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
+import { message as staticMessage } from "antd";
 import { BackendContext } from "../lib/backend";
 import { basename } from "../lib/types";
 import type { PipelineStateName, ProgressInfo } from "../lib/types";
@@ -56,6 +57,11 @@ export default function FilePage({ active }: { active: boolean }) {
   const [exporting, setExporting] = useState<"srt" | "vtt" | null>(null);
 
   const pollRef = useRef<number | null>(null);
+  const taskRunningRef = useRef(false);
+
+  const taskRunning =
+    task !== null && (task.progress.state === "processing" || task.progress.state === "idle");
+  taskRunningRef.current = taskRunning;
 
   const stopPolling = useCallback(() => {
     if (pollRef.current !== null) {
@@ -95,7 +101,13 @@ export default function FilePage({ active }: { active: boolean }) {
         onDrop: (paths) => {
           setDragOver(false);
           const p = paths[0];
-          if (p) selectFile(p);
+          if (!p) return;
+          if (taskRunningRef.current) {
+            // 拖拽回调在 React 事件体系之外，App.useApp 的 message 在此上下文不渲染，需走静态 API
+            staticMessage.warning("任务处理中，请等待完成后再更换文件");
+            return;
+          }
+          selectFile(p);
         },
       })
       .then((fn) => {
@@ -117,9 +129,6 @@ export default function FilePage({ active }: { active: boolean }) {
       message.error(`打开文件对话框失败：${e}`);
     }
   };
-
-  const taskRunning =
-    task !== null && (task.progress.state === "processing" || task.progress.state === "idle");
 
   const onStart = async () => {
     if (!file || taskRunning) return;
@@ -143,12 +152,16 @@ export default function FilePage({ active }: { active: boolean }) {
     setExporting(format);
     try {
       const path = await backend.exportSubtitle(format);
-      message.success(`已导出：${path}`);
+      message.success({ content: `已导出：${path}`, duration: 8 });
       setTask((t) =>
         t ? { ...t, progress: { ...t.progress, state: "exported" } } : t,
       );
     } catch (e) {
-      message.error(`导出失败：${e}`);
+      if (`${e}`.includes("Save cancelled")) {
+        message.info("已取消保存");
+      } else {
+        message.error(`导出失败：${e}`);
+      }
     } finally {
       setExporting(null);
     }
