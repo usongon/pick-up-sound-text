@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Lexecho",
+  "productName": "Shiyane",
   "version": "0.1.0",
-  "identifier": "com.usongon.lexecho",
+  "identifier": "com.usongon.shiyane",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "拾言 - Lexecho",
+        "title": "拾言 - Shiyane",
         "width": 1200,
         "height": 800
       }
