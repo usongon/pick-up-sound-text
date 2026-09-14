@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.usongon.shiyane",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "frontendDist": "./src-ui"
+    "beforeDevCommand": { "script": "npm run dev", "cwd": "src-ui" },
+    "beforeBuildCommand": { "script": "npm run build", "cwd": "src-ui" },
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "./src-ui/dist"
   },
   "app": {
     "windows": [
@@ -19,8 +20,7 @@
     ],
     "security": {
       "csp": null
-    },
-    "withGlobalTauri": true
+    }
   },
   "bundle": {
     "active": true,
