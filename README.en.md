@@ -37,13 +37,13 @@ A cross-platform desktop app that turns video files into translated subtitles. D
 # Install Rust (2024 edition)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Install Tauri CLI
+# Install Tauri CLI and Node.js (>= 20)
 cargo install tauri-cli
 
 # Clone and build
 git clone https://github.com/usongon/shiyane.git
 cd shiyane
-cargo tauri build
+cargo tauri build   # installs frontend deps in src-ui/ and builds it automatically
 ```
 
 The built app is in `target/release/bundle/`.
@@ -51,7 +51,13 @@ The built app is in `target/release/bundle/`.
 ## Development
 
 ```bash
-cargo tauri dev
+cargo tauri dev    # Vite dev server (5173) + Rust incremental build + HMR
+```
+
+You can also run the frontend alone in a browser (demo mode with mock data, no keys required):
+
+```bash
+cd src-ui && npm install && npm run dev
 ```
 
 ## Configuration
@@ -77,7 +83,7 @@ API keys are stored encrypted at `~/Library/Application Support/pick-up-sound-te
 ## Architecture
 
 ```
-src/
+src/               # Rust backend
 ├── asr/          # FileAsrProvider (async transcription) + DashScope realtime WebSocket client
 ├── audio/        # AudioSource trait + FileAudioSource (ffmpeg extraction)
 ├── oss/          # OSS uploader with HMAC-SHA1 signed URLs
@@ -86,12 +92,17 @@ src/
 ├── subtitle/     # SubtitleEntry, SRT/VTT generation
 ├── config/       # AppConfig + encrypted keystore
 └── commands/     # Tauri commands (frontend ↔ backend)
+
+src-ui/            # Frontend (React + TypeScript)
+├── src/lib/      # Tauri backend bridge + browser mock demo layer
+├── src/views/    # File / Realtime / Settings views
+└── src/theme.ts  # AntD theme (light/dark, brand tokens)
 ```
 
 ## Tech stack
 
 - **Backend**: Rust 2024, Tauri 2.0, tokio, reqwest, tokio-tungstenite
-- **Frontend**: Vanilla HTML/CSS/JS (no framework)
+- **Frontend**: React 18 + TypeScript + Ant Design 5 + Vite (light/dark themes)
 - **ASR**: Bailian async file transcription API (submit → poll → download)
 - **Translation**: OpenAI-compatible Chat Completions API
 - **Audio**: ffmpeg (16kHz mono PCM WAV)

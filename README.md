@@ -43,13 +43,13 @@
 # 安装 Rust（2024 edition）
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# 安装 Tauri CLI
+# 安装 Tauri CLI 与 Node.js（≥ 20）
 cargo install tauri-cli
 
 # 克隆并构建
 git clone https://github.com/usongon/shiyane.git
 cd shiyane
-cargo tauri build
+cargo tauri build   # 会自动在 src-ui/ 安装依赖并构建前端
 ```
 
 构建产物在 `target/release/bundle/` 目录下。
@@ -57,7 +57,13 @@ cargo tauri build
 ## 开发模式
 
 ```bash
-cargo tauri dev
+cargo tauri dev    # Vite dev server (5173) + Rust 增量编译 + 热更新
+```
+
+也可以只起前端在浏览器里预览界面（自动进入演示模式，使用模拟数据，不需要任何密钥）：
+
+```bash
+cd src-ui && npm install && npm run dev
 ```
 
 ## 配置说明
@@ -83,7 +89,7 @@ API Key 加密存储在 `~/Library/Application Support/pick-up-sound-text/config
 ## 架构
 
 ```
-src/
+src/               # Rust 后端
 ├── asr/          # 文件转写抽象（异步任务）+ 百炼实时 WebSocket 客户端
 ├── audio/        # 音频源抽象 + 文件音频源（ffmpeg 提取）
 ├── oss/          # OSS 上传 + HMAC-SHA1 签名 URL
@@ -92,12 +98,17 @@ src/
 ├── subtitle/     # 字幕条目、SRT/VTT 生成
 ├── config/       # 配置管理 + 加密密钥存储
 └── commands/     # Tauri 命令（前端 ↔ 后端）
+
+src-ui/            # 前端（React + TypeScript）
+├── src/lib/      # Tauri 后端桥接层 + 浏览器 mock 演示层
+├── src/views/    # 文件转字幕 / 实时字幕 / 设置
+└── src/theme.ts  # AntD 主题（浅/暗双主题，品牌色 token）
 ```
 
 ## 技术栈
 
 - **后端**：Rust 2024、Tauri 2.0、tokio、reqwest、tokio-tungstenite
-- **前端**：原生 HTML/CSS/JS（无框架）
+- **前端**：React 18 + TypeScript + Ant Design 5 + Vite（浅/暗双主题）
 - **ASR**：百炼异步文件转写 API（提交 → 轮询 → 下载）
 - **翻译**：OpenAI 兼容 Chat Completions API
 - **音频**：ffmpeg（16kHz 单声道 PCM WAV）
