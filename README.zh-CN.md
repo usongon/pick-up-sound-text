@@ -1,4 +1,4 @@
-# pick-up-sound-text
+# 拾言 (PickUpSound)
 
 视频转字幕工具：拖入视频文件，自动提取音频、语音识别、翻译，导出 SRT/VTT 字幕文件。
 

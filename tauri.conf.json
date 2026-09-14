@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "pick-up-sound-text",
+  "productName": "PickUpSound",
   "version": "0.1.0",
-  "identifier": "com.usongon.pick-up-sound-text",
+  "identifier": "com.usongon.pick-up-sound",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "pick-up-sound-text",
+        "title": "拾言 - PickUpSound",
         "width": 1200,
         "height": 800
       }
