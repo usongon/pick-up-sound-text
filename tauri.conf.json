@@ -13,7 +13,8 @@
       {
         "title": "拾言 - Shiyane",
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "dragDropEnabled": true
       }
     ],
     "security": {

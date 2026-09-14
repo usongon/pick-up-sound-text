@@ -3,6 +3,7 @@ pub mod audio;
 pub mod checkpoint;
 pub mod config;
 pub mod error;
+pub mod oss;
 pub mod pipeline;
 pub mod subtitle;
 pub mod translate;

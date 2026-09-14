@@ -18,7 +18,6 @@
             <div class="drop-zone" id="drop-zone">
                 <p>拖拽视频文件到这里，或点击选择文件</p>
                 <p class="hint">支持格式: mp4 / mkv / avi / mov ...</p>
-                <input type="file" id="file-input" accept="video/*" style="display: none;">
             </div>
 
             <div id="file-config" style="display: none; margin-top: 15px;">
@@ -61,12 +60,21 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="asr-model">模型</label>
-                    <input type="text" id="asr-model" value="paraformer-realtime-v2">
+                    <label for="asr-file-model">文件转写模型</label>
+                    <input type="text" id="asr-file-model" value="qwen-audio-3.0-asr-flash-filetrans">
+                </div>
+                <div class="form-group">
+                    <label for="asr-realtime-model">实时识别模型</label>
+                    <input type="text" id="asr-realtime-model" value="qwen-audio-3.0-asr-flash">
                 </div>
                 <div class="form-group">
                     <label for="asr-api-key">API Key</label>
                     <input type="password" id="asr-api-key" placeholder="输入百炼 API Key">
+                </div>
+                <div class="form-group">
+                    <label for="asr-workspace-id">业务空间 ID (Workspace ID)</label>
+                    <input type="text" id="asr-workspace-id" placeholder="例如: llm-xxxxxxxxxxxx">
+                    <small style="color: #888; font-size: 12px;">北京区域必填，在百炼控制台右上角获取</small>
                 </div>
                 <button id="test-asr-btn" class="secondary-btn">测试 ASR 连通性</button>
                 <div id="asr-test-status" class="status-message"></div>
@@ -100,6 +108,29 @@
                 </div>
                 <button id="test-translate-btn" class="secondary-btn">测试翻译连通性</button>
                 <div id="translate-test-status" class="status-message"></div>
+
+                <h2>OSS 配置（文件转写必需）</h2>
+                <div class="form-group">
+                    <label for="oss-endpoint">Endpoint</label>
+                    <input type="text" id="oss-endpoint" placeholder="例如: oss-cn-beijing.aliyuncs.com">
+                </div>
+                <div class="form-group">
+                    <label for="oss-bucket">Bucket 名称</label>
+                    <input type="text" id="oss-bucket" placeholder="例如: my-audio-bucket">
+                </div>
+                <div class="form-group">
+                    <label for="oss-access-key-id">Access Key ID</label>
+                    <input type="password" id="oss-access-key-id" placeholder="输入 OSS Access Key ID">
+                </div>
+                <div class="form-group">
+                    <label for="oss-access-key-secret">Access Key Secret</label>
+                    <input type="password" id="oss-access-key-secret" placeholder="输入 OSS Access Key Secret">
+                </div>
+                <div class="form-group">
+                    <label for="oss-path-prefix">路径前缀（可选）</label>
+                    <input type="text" id="oss-path-prefix" placeholder="例如: shiyane-temp/">
+                    <small style="color: #888; font-size: 12px;">文件转写需要 OSS 托管音频文件，处理完成后自动删除</small>
+                </div>
 
                 <button id="save-config-btn" class="primary-btn">保存配置</button>
                 <div id="config-status" class="status-message"></div>

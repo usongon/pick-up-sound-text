@@ -1,15 +1,23 @@
-use pick_up_sound_text::asr::DashScopeAsrProvider;
+use pick_up_sound_text::asr::DashScopeFileTransProvider;
 use pick_up_sound_text::audio::FileAudioSource;
 use pick_up_sound_text::config::{AppConfig, translate_provider_preset};
 use pick_up_sound_text::pipeline::{FilePipeline, PipelineState};
 use pick_up_sound_text::subtitle::{generate_srt, generate_vtt, SubtitleEntry};
-use pick_up_sound_text::translate::OpenAiCompatibleProvider;
+use pick_up_sound_text::translate::{OpenAiCompatibleProvider, TranslateProvider};
+use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+
+#[derive(Serialize)]
+pub struct ProgressInfo {
+    pub state: String,
+    pub progress: f64,
+    pub error: Option<String>,
+}
 
 pub struct AppState {
     pub pipeline_state: Arc<Mutex<Option<Arc<Mutex<PipelineState>>>>>,
@@ -40,6 +48,8 @@ pub async fn start_file_processing(
     source_language: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    tracing::info!("start_file_processing called: video_path={}, source_language={}", video_path, source_language);
+    
     let video_path = PathBuf::from(video_path);
 
     // Get config
@@ -50,8 +60,10 @@ pub async fn start_file_processing(
         .await
         .map_err(|e| e.to_string())?;
 
-    // Create ASR provider
-    let asr_provider = DashScopeAsrProvider;
+    // Create ASR provider with OSS config
+    let asr_provider = DashScopeFileTransProvider {
+        oss_config: config.oss.clone(),
+    };
 
     // Create translate provider using preset base_url
     let (base_url, _) = translate_provider_preset(&config.translate.provider);
@@ -129,26 +141,37 @@ fn md5ish(data: &[u8]) -> u64 {
 }
 
 #[tauri::command]
-pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<f64, String> {
+pub async fn get_processing_progress(state: State<'_, AppState>) -> Result<ProgressInfo, String> {
     let pipeline_state_guard = state.pipeline_state.lock().await;
 
     if let Some(state_handle) = pipeline_state_guard.as_ref() {
         let pipeline_state = state_handle.lock().await.clone();
-        match pipeline_state {
-            PipelineState::Completed | PipelineState::Exported => Ok(1.0),
-            PipelineState::Failed => Ok(0.0),
-            _ => {
-                let progress_guard = state.pipeline_progress.lock().await;
-                if let Some(progress_handle) = progress_guard.as_ref() {
-                    let p = *progress_handle.lock().await;
-                    Ok(p)
-                } else {
-                    Ok(0.0)
-                }
-            }
-        }
+        let progress_guard = state.pipeline_progress.lock().await;
+        let progress_value = if let Some(progress_handle) = progress_guard.as_ref() {
+            *progress_handle.lock().await
+        } else {
+            0.0
+        };
+
+        let (state_str, progress, error) = match pipeline_state {
+            PipelineState::Idle => ("idle", progress_value, None),
+            PipelineState::Processing => ("processing", progress_value, None),
+            PipelineState::Completed => ("completed", 1.0, None),
+            PipelineState::Exported => ("exported", 1.0, None),
+            PipelineState::Failed(err) => ("failed", progress_value, Some(err)),
+        };
+
+        Ok(ProgressInfo {
+            state: state_str.to_string(),
+            progress,
+            error,
+        })
     } else {
-        Ok(0.0)
+        Ok(ProgressInfo {
+            state: "idle".to_string(),
+            progress: 0.0,
+            error: None,
+        })
     }
 }
 
@@ -185,5 +208,56 @@ pub async fn export_subtitle(
         Ok(path_buf.to_string_lossy().to_string())
     } else {
         Err("Save cancelled".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn test_asr_connection(config: AppConfig) -> Result<String, String> {
+    tracing::info!("test_asr_connection called");
+    tracing::info!("ASR provider: {}", config.asr.provider);
+    tracing::info!("ASR api_key length: {} chars", config.asr.api_key.len());
+    tracing::info!("ASR workspace_id: {:?}", config.asr.workspace_id);
+    tracing::info!("OSS config present: {}", config.oss.is_some());
+    
+    // Validate required config
+    if config.asr.api_key.is_empty() {
+        return Err("ASR API Key 未配置".to_string());
+    }
+    
+    if config.asr.workspace_id.is_none() {
+        return Err("ASR Workspace ID 未配置（北京区域必填）".to_string());
+    }
+    
+    if config.oss.is_none() {
+        return Err("OSS 配置未设置（文件转写需要 OSS 托管音频）".to_string());
+    }
+    
+    let oss = config.oss.as_ref().unwrap();
+    if oss.endpoint.is_empty() || oss.bucket.is_empty() || oss.access_key_id.is_empty() || oss.access_key_secret.is_empty() {
+        return Err("OSS 配置不完整".to_string());
+    }
+    
+    // Try to create provider and validate OSS connection
+    let _provider = DashScopeFileTransProvider {
+        oss_config: config.oss.clone(),
+    };
+    
+    // For now, just validate config presence
+    // TODO: Could try uploading a small test file to OSS to verify credentials
+    Ok("ASR 配置验证通过（API Key、Workspace ID、OSS 配置已设置）".to_string())
+}
+
+#[tauri::command]
+pub async fn test_translate_connection(config: AppConfig) -> Result<String, String> {
+    let (base_url, _) = translate_provider_preset(&config.translate.provider);
+    let provider = OpenAiCompatibleProvider {
+        base_url: base_url.to_string(),
+        model: config.translate.model.clone(),
+        api_key: config.translate.api_key.clone(),
+    };
+    
+    match provider.test_connection().await {
+        Ok(_) => Ok("翻译连接成功".to_string()),
+        Err(e) => Err(format!("翻译连接失败: {}", e)),
     }
 }

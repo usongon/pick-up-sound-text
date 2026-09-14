@@ -1,12 +1,17 @@
 mod commands;
 
-use commands::{export_subtitle, get_config, get_processing_progress, save_config, start_file_processing, AppState};
+use commands::{export_subtitle, get_config, get_processing_progress, save_config, start_file_processing, test_asr_connection, test_translate_connection, AppState};
 use pick_up_sound_text::config::AppConfig;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("debug"))
+        )
+        .init();
 
     let config = AppConfig::load().unwrap_or_default();
 
@@ -28,7 +33,19 @@ fn main() {
             export_subtitle,
             get_config,
             save_config,
+            test_asr_connection,
+            test_translate_connection,
         ])
+        .setup(|app| {
+            #[cfg(debug_assertions)]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    window.open_devtools();
+                }
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

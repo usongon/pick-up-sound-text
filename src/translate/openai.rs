@@ -19,27 +19,41 @@ impl TranslateProvider for OpenAiCompatibleProvider {
         let context_text = if req.context.is_empty() {
             String::new()
         } else {
-            format!("Context:\n{}\n\n", req.context.join("\n"))
+            format!("Previous context:\n{}\n\n", req.context.join("\n"))
         };
         
-        // Build prompt
-        let prompt = format!(
-            "{}Translate the following text from {} to {}:\n\n{}",
-            context_text,
-            req.source_lang,
-            req.target_lang,
-            req.text
-        );
+        // Build messages with system prompt and few-shot examples
+        let messages = vec![
+            json!({
+                "role": "system",
+                "content": "You are a professional subtitle translator. Translate the given text naturally and accurately, preserving the tone, style, and context. Avoid literal word-for-word translation. Focus on conveying the meaning in fluent, idiomatic target language."
+            }),
+            json!({
+                "role": "user",
+                "content": "Translate from en to zh:\n\nWe have main engine start, 4, 3, 2, 1."
+            }),
+            json!({
+                "role": "assistant",
+                "content": "主发动机启动，4、3、2、1。"
+            }),
+            json!({
+                "role": "user",
+                "content": "Translate from en to zh:\n\nYou have your robotics, and I just want to be awesome in space."
+            }),
+            json!({
+                "role": "assistant",
+                "content": "你有你的机器人技术，而我只想在太空中大显身手。"
+            }),
+            json!({
+                "role": "user",
+                "content": format!("{}Translate from {} to {}:\n\n{}", context_text, req.source_lang, req.target_lang, req.text)
+            })
+        ];
         
         // Build request body (OpenAI Chat Completions format)
         let body = json!({
             "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+            "messages": messages,
             "temperature": 0.3,
             "max_tokens": 500
         });

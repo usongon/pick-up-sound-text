@@ -7,8 +7,11 @@ use crate::{Error, Result};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AsrConfig {
     pub provider: String,
-    pub model: String,
     pub api_key: String,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    pub file_model: String,
+    pub realtime_model: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +20,16 @@ pub struct TranslateConfig {
     pub model: String,
     pub api_key: String,
     pub target_lang: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OssConfig {
+    pub endpoint: String,
+    pub bucket: String,
+    pub access_key_id: String,
+    pub access_key_secret: String,
+    #[serde(default)]
+    pub path_prefix: Option<String>,
 }
 
 /// Preset base_url and default model for known translate providers.
@@ -35,6 +48,8 @@ pub fn translate_provider_preset(provider: &str) -> (&'static str, &'static str)
 pub struct AppConfig {
     pub asr: AsrConfig,
     pub translate: TranslateConfig,
+    #[serde(default)]
+    pub oss: Option<OssConfig>,
 }
 
 impl Default for AppConfig {
@@ -42,8 +57,10 @@ impl Default for AppConfig {
         Self {
             asr: AsrConfig {
                 provider: "dashscope".to_string(),
-                model: "paraformer-realtime-v2".to_string(),
                 api_key: "".to_string(),
+                workspace_id: None,
+                file_model: "qwen-audio-3.0-asr-flash-filetrans".to_string(),
+                realtime_model: "qwen-audio-3.0-asr-flash".to_string(),
             },
             translate: TranslateConfig {
                 provider: "openai".to_string(),
@@ -51,6 +68,7 @@ impl Default for AppConfig {
                 api_key: "".to_string(),
                 target_lang: "zh".to_string(),
             },
+            oss: None,
         }
     }
 }

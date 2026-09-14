@@ -1,6 +1,8 @@
 pub mod dashscope;
+pub mod dashscope_filetrans;
 
 pub use dashscope::DashScopeAsrProvider;
+pub use dashscope_filetrans::DashScopeFileTransProvider;
 
 use crate::Result;
 use async_trait::async_trait;
@@ -30,6 +32,7 @@ pub struct AsrConfig {
     pub model: String,
     pub api_key: String,
     pub language: String,
+    pub workspace_id: Option<String>,
 }
 
 #[async_trait]
@@ -45,4 +48,24 @@ pub trait AsrStream: Send + Sync {
     /// notify the server (e.g. DashScope `finish-task`) so it can emit
     /// final results and close the task.
     async fn finish(&mut self) -> Result<()>;
+}
+
+/// Result from asynchronous file transcription
+#[derive(Debug, Clone)]
+pub struct FileTranscriptionResult {
+    pub sentences: Vec<TranscriptionSentence>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TranscriptionSentence {
+    pub text: String,
+    pub begin_time: f64,  // seconds
+    pub end_time: f64,    // seconds
+}
+
+/// Provider for asynchronous file transcription (submit → poll → download)
+#[async_trait]
+pub trait FileAsrProvider: Send + Sync {
+    /// Transcribe a complete audio file and return all sentences with timestamps
+    async fn transcribe_file(&self, config: &AsrConfig, audio_path: &std::path::Path) -> Result<FileTranscriptionResult>;
 }

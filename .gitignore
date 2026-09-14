@@ -2,3 +2,11 @@
 /gen
 /dist
 .idea/
+
+# Test media files (large)
+*.mov
+*.mp4
+
+# Generated subtitle outputs
+output*.srt
+output*.vtt

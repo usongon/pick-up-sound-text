@@ -38,4 +38,8 @@ pub trait AudioSource: Send + Sync {
 
     /// Total duration of the source, if known.
     fn total_duration(&self) -> Option<Duration>;
+
+    /// Extract complete audio track to a temporary WAV file.
+    /// Returns the path to the temporary file.
+    async fn extract_full_audio_to_wav(&self) -> Result<std::path::PathBuf>;
 }

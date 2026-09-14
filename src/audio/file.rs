@@ -159,4 +159,40 @@ impl AudioSource for FileAudioSource {
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
     }
+
+    async fn extract_full_audio_to_wav(&self) -> Result<PathBuf> {
+        let path_str = self
+            .video_path
+            .to_str()
+            .ok_or_else(|| Error::AudioSource("Path contains invalid UTF-8".to_string()))?;
+
+        // Create temp file path
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join(format!("shiyane-{}.wav", uuid::Uuid::new_v4()));
+
+        let output = Command::new("ffmpeg")
+            .args(&[
+                "-i",
+                path_str,
+                "-vn",
+                "-acodec",
+                "pcm_s16le",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-y", // Overwrite if exists
+                temp_file.to_str().ok_or_else(|| Error::AudioSource("Invalid temp path".to_string()))?,
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+            .await?;
+
+        if !output.status.success() {
+            return Err(Error::AudioSource("ffmpeg audio extraction failed".to_string()));
+        }
+
+        Ok(temp_file)
+    }
 }

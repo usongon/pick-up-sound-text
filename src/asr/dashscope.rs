@@ -5,6 +5,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use uuid::Uuid;
 
 pub struct DashScopeAsrProvider;
@@ -14,13 +15,36 @@ impl AsrProvider for DashScopeAsrProvider {
     async fn start_stream(&self, config: &AsrConfig) -> Result<Box<dyn AsrStream>> {
         let task_id = Uuid::new_v4().to_string();
         
-        // WebSocket URL
-        let url = format!("wss://dashscope.aliyuncs.com/api-ws/v1/inference?Authorization=Bearer%20{}", config.api_key);
+        // WebSocket URL with Workspace ID (required for Beijing region)
+        let url = if let Some(workspace_id) = &config.workspace_id {
+            format!("wss://{}.cn-beijing.maas.aliyuncs.com/api-ws/v1/inference", workspace_id)
+        } else {
+            // Fallback to generic domain (may not work for all regions)
+            "wss://dashscope.aliyuncs.com/api-ws/v1/inference".to_string()
+        };
+        
+        // Create request and add Authorization header
+        let api_key = config.api_key.trim();
+        let mut request = url
+            .into_client_request()
+            .map_err(|e| Error::Asr(format!("Failed to create request: {}", e)))?;
+        
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {}", api_key)
+                .parse()
+                .map_err(|e| Error::Asr(format!("Invalid header value: {}", e)))?,
+        );
+        
+        tracing::debug!("WebSocket request headers: {:?}", request.headers());
+        tracing::debug!("API key length: {} chars", api_key.len());
         
         // Create WebSocket connection
-        let (ws_stream, _) = connect_async(&url)
+        let (ws_stream, response) = connect_async(request)
             .await
             .map_err(|e| Error::Asr(format!("WebSocket connection failed: {}", e)))?;
+        
+        tracing::debug!("WebSocket handshake response: {:?}", response);
         
         let (mut write, mut read) = ws_stream.split();
         
@@ -69,11 +93,15 @@ impl AsrProvider for DashScopeAsrProvider {
                                         // Task is ready to receive audio; no event needed.
                                     }
                                     "result-generated" => {
+                                        tracing::info!("DashScope result-generated raw JSON: {}", serde_json::to_string_pretty(&json).unwrap_or_default());
+                                        
                                         if let Some(sentence) = json["payload"]["output"]["sentence"].as_object() {
                                             let text = sentence["text"].as_str().unwrap_or("").to_string();
                                             let begin_time = sentence["begin_time"].as_f64().unwrap_or(0.0) / 1000.0;
                                             let end_time = sentence["end_time"].as_f64().unwrap_or(0.0) / 1000.0;
                                             let sentence_end = sentence["sentence_end"].as_bool().unwrap_or(false);
+                                            
+                                            tracing::info!("Parsed sentence: text='{}' ({} chars), begin={}, end={}, sentence_end={}", text, text.len(), begin_time, end_time, sentence_end);
                                             
                                             if sentence_end {
                                                 let _ = tx.send(Ok(AsrEvent::Final {
@@ -88,6 +116,8 @@ impl AsrProvider for DashScopeAsrProvider {
                                                     ts_end: end_time,
                                                 })).await;
                                             }
+                                        } else {
+                                            tracing::warn!("No 'sentence' object in payload.output");
                                         }
                                     }
                                     "task-finished" => {
@@ -142,6 +172,13 @@ impl AsrStream for DashScopeAsrStream {
         let bytes: Vec<u8> = pcm.iter()
             .flat_map(|&sample| sample.to_le_bytes())
             .collect();
+        
+        // Log first call details to verify audio data
+        if pcm.len() > 0 {
+            let non_zero_count = pcm.iter().filter(|&&s| s != 0).count();
+            tracing::info!("Sending audio: {} samples ({} bytes), {} non-zero samples, first 10: {:?}", 
+                pcm.len(), bytes.len(), non_zero_count, &pcm[..std::cmp::min(10, pcm.len())]);
+        }
         
         self.write
             .send(Message::Binary(bytes))

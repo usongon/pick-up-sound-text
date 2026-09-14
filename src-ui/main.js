@@ -1,7 +1,16 @@
 // Tauri 2 withGlobalTauri nests invoke under .core
+console.log('[INIT] window.__TAURI__:', window.__TAURI__);
+console.log('[INIT] window.__TAURI__.core:', window.__TAURI__?.core);
+console.log('[INIT] window.__TAURI__.event:', window.__TAURI__?.event);
+console.log('[INIT] window.__TAURI__.dialog:', window.__TAURI__?.dialog);
+
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 const { open } = window.__TAURI__.dialog;
+
+console.log('[INIT] invoke:', typeof invoke);
+console.log('[INIT] listen:', typeof listen);
+console.log('[INIT] open:', typeof open);
 
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab => {
@@ -22,10 +31,11 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 // File drop zone
 const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
 
 // Tauri native drag-drop provides real file paths (unlike HTML5 drop)
 listen('tauri://drag-drop', (event) => {
+    console.log('[DRAG] drop event:', event);
+    console.log('[DRAG] payload:', event.payload);
     dropZone.classList.remove('dragover');
     const paths = event.payload.paths;
     if (paths.length > 0) {
@@ -33,21 +43,20 @@ listen('tauri://drag-drop', (event) => {
     }
 });
 
-listen('tauri://drag-enter', () => {
+listen('tauri://drag-enter', (event) => {
+    console.log('[DRAG] enter event:', event);
     dropZone.classList.add('dragover');
 });
 
-listen('tauri://drag-leave', () => {
+listen('tauri://drag-leave', (event) => {
+    console.log('[DRAG] leave event:', event);
     dropZone.classList.remove('dragover');
 });
 
-dropZone.addEventListener('click', () => {
-    fileInput.click();
-});
-
-fileInput.addEventListener('change', async (e) => {
-    if (e.target.files.length > 0) {
-        // File input doesn't provide paths in Tauri; open dialog instead
+dropZone.addEventListener('click', async () => {
+    console.log('[CLICK] Drop zone clicked');
+    console.log('[CLICK] open function:', typeof open);
+    try {
         const filePath = await open({
             multiple: false,
             filters: [{
@@ -55,10 +64,12 @@ fileInput.addEventListener('change', async (e) => {
                 extensions: ['mp4', 'mkv', 'avi', 'mov']
             }]
         });
+        console.log('[CLICK] Dialog returned:', filePath);
         if (filePath) {
             handleFilePath(filePath);
         }
-        e.target.value = '';
+    } catch (err) {
+        console.error('[CLICK] Dialog error:', err);
     }
 });
 
@@ -67,6 +78,30 @@ let pendingFilePath = null;
 async function handleFilePath(filePath) {
     console.log('File selected:', filePath);
     pendingFilePath = filePath;
+
+    const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+    
+    // Clear existing content
+    dropZone.textContent = '';
+    
+    const checkmark = document.createElement('p');
+    checkmark.style.color = '#4CAF50';
+    checkmark.style.fontWeight = 'bold';
+    checkmark.textContent = '✓ 已选择文件';
+    
+    const fileNameP = document.createElement('p');
+    fileNameP.style.fontSize = '14px';
+    fileNameP.style.marginTop = '8px';
+    fileNameP.textContent = fileName;
+    
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.style.marginTop = '8px';
+    hint.textContent = '点击可重新选择';
+    
+    dropZone.appendChild(checkmark);
+    dropZone.appendChild(fileNameP);
+    dropZone.appendChild(hint);
 
     // Show language selection + start button
     document.getElementById('file-config').style.display = 'block';
@@ -101,7 +136,7 @@ function addTaskToList(fileName) {
     taskItem.className = 'task-item';
 
     const fileNameDiv = document.createElement('div');
-    fileNameDiv.textContent = `📹 ${fileName}`; // Use textContent instead of innerHTML
+    fileNameDiv.textContent = `📹 ${fileName}`;
 
     const progressDiv = document.createElement('div');
     progressDiv.className = 'task-progress';
@@ -109,6 +144,7 @@ function addTaskToList(fileName) {
     const progressBar = document.createElement('div');
     progressBar.className = 'task-progress-bar';
     progressBar.style.width = '0%';
+    progressBar.style.backgroundColor = '#2196F3';
 
     progressDiv.appendChild(progressBar);
     taskItem.appendChild(fileNameDiv);
@@ -125,24 +161,59 @@ function startProgressPolling() {
 
     progressInterval = setInterval(async () => {
         try {
-            const progress = await invoke('get_processing_progress');
-            updateProgress(progress);
+            const info = await invoke('get_processing_progress');
+            console.log('[PROGRESS]', info);
+            updateProgress(info);
 
-            if (progress >= 1.0) {
+            if (info.state === 'completed' || info.state === 'exported') {
                 clearInterval(progressInterval);
                 progressInterval = null;
-                showExportSection(); // Show export buttons when complete
+                showExportSection();
+            } else if (info.state === 'failed') {
+                clearInterval(progressInterval);
+                progressInterval = null;
             }
         } catch (error) {
             console.error('Progress polling error:', error);
         }
-    }, 1000); // Poll every second
+    }, 1000);
 }
 
-function updateProgress(progress) {
+function updateProgress(info) {
     const progressBars = document.querySelectorAll('.task-progress-bar');
     progressBars.forEach(bar => {
-        bar.style.width = `${progress * 100}%`;
+        bar.style.width = `${info.progress * 100}%`;
+        
+        // Change color based on state
+        if (info.state === 'failed') {
+            bar.style.backgroundColor = '#f44336';
+        } else if (info.state === 'completed' || info.state === 'exported') {
+            bar.style.backgroundColor = '#4CAF50';
+        }
+    });
+    
+    // Update or create status text
+    const taskItems = document.querySelectorAll('.task-item');
+    taskItems.forEach(item => {
+        let statusDiv = item.querySelector('.task-status');
+        if (!statusDiv) {
+            statusDiv = document.createElement('div');
+            statusDiv.className = 'task-status';
+            statusDiv.style.fontSize = '12px';
+            statusDiv.style.marginTop = '4px';
+            item.appendChild(statusDiv);
+        }
+        
+        if (info.state === 'processing') {
+            statusDiv.textContent = `处理中... ${Math.round(info.progress * 100)}%`;
+            statusDiv.style.color = '#2196F3';
+        } else if (info.state === 'completed') {
+            statusDiv.textContent = '✓ 完成';
+            statusDiv.style.color = '#4CAF50';
+        } else if (info.state === 'failed') {
+            statusDiv.textContent = `✗ 失败: ${info.error || '未知错误'}`;
+            statusDiv.style.color = '#f44336';
+        }
     });
 }
 
@@ -153,14 +224,25 @@ async function loadConfig() {
         
         // ASR config
         document.getElementById('asr-provider').value = config.asr.provider;
-        document.getElementById('asr-model').value = config.asr.model;
+        document.getElementById('asr-file-model').value = config.asr.file_model;
+        document.getElementById('asr-realtime-model').value = config.asr.realtime_model;
         document.getElementById('asr-api-key').value = config.asr.api_key;
+        document.getElementById('asr-workspace-id').value = config.asr.workspace_id || '';
         
         // Translate config
         document.getElementById('translate-provider').value = config.translate.provider;
         document.getElementById('translate-model').value = config.translate.model;
         document.getElementById('translate-api-key').value = config.translate.api_key;
         document.getElementById('translate-target-lang').value = config.translate.target_lang;
+        
+        // OSS config (optional)
+        if (config.oss) {
+            document.getElementById('oss-endpoint').value = config.oss.endpoint || '';
+            document.getElementById('oss-bucket').value = config.oss.bucket || '';
+            document.getElementById('oss-access-key-id').value = config.oss.access_key_id || '';
+            document.getElementById('oss-access-key-secret').value = config.oss.access_key_secret || '';
+            document.getElementById('oss-path-prefix').value = config.oss.path_prefix || '';
+        }
     } catch (error) {
         console.error('Failed to load config:', error);
     }
@@ -173,8 +255,10 @@ async function saveConfig() {
         const config = {
             asr: {
                 provider: document.getElementById('asr-provider').value,
-                model: document.getElementById('asr-model').value,
+                file_model: document.getElementById('asr-file-model').value,
+                realtime_model: document.getElementById('asr-realtime-model').value,
                 api_key: document.getElementById('asr-api-key').value,
+                workspace_id: document.getElementById('asr-workspace-id').value.trim() || null,
             },
             translate: {
                 provider: document.getElementById('translate-provider').value,
@@ -182,6 +266,25 @@ async function saveConfig() {
                 api_key: document.getElementById('translate-api-key').value,
                 target_lang: document.getElementById('translate-target-lang').value,
             },
+            oss: (() => {
+                const endpoint = document.getElementById('oss-endpoint').value.trim();
+                const bucket = document.getElementById('oss-bucket').value.trim();
+                const accessKeyId = document.getElementById('oss-access-key-id').value.trim();
+                const accessKeySecret = document.getElementById('oss-access-key-secret').value.trim();
+                const pathPrefix = document.getElementById('oss-path-prefix').value.trim();
+                
+                if (!endpoint && !bucket && !accessKeyId && !accessKeySecret) {
+                    return null;
+                }
+                
+                return {
+                    endpoint,
+                    bucket,
+                    access_key_id: accessKeyId,
+                    access_key_secret: accessKeySecret,
+                    path_prefix: pathPrefix || null,
+                };
+            })(),
         };
         
         await invoke('save_config', { config });
@@ -227,14 +330,47 @@ document.getElementById('test-asr-btn').addEventListener('click', async () => {
     statusDiv.className = 'status-message';
     
     try {
-        // TODO: Implement ASR connection test
-        // For now, just simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Build config from current input values
+        const config = {
+            asr: {
+                provider: document.getElementById('asr-provider').value,
+                file_model: document.getElementById('asr-file-model').value,
+                realtime_model: document.getElementById('asr-realtime-model').value,
+                api_key: document.getElementById('asr-api-key').value,
+                workspace_id: document.getElementById('asr-workspace-id').value.trim() || null,
+            },
+            translate: {
+                provider: document.getElementById('translate-provider').value,
+                model: document.getElementById('translate-model').value,
+                api_key: document.getElementById('translate-api-key').value,
+                target_lang: document.getElementById('translate-target-lang').value,
+            },
+            oss: (() => {
+                const endpoint = document.getElementById('oss-endpoint').value.trim();
+                const bucket = document.getElementById('oss-bucket').value.trim();
+                const accessKeyId = document.getElementById('oss-access-key-id').value.trim();
+                const accessKeySecret = document.getElementById('oss-access-key-secret').value.trim();
+                const pathPrefix = document.getElementById('oss-path-prefix').value.trim();
+                
+                if (!endpoint && !bucket && !accessKeyId && !accessKeySecret) {
+                    return null;
+                }
+                
+                return {
+                    endpoint,
+                    bucket,
+                    access_key_id: accessKeyId,
+                    access_key_secret: accessKeySecret,
+                    path_prefix: pathPrefix || null,
+                };
+            })(),
+        };
         
-        statusDiv.textContent = 'ASR 连接成功';
+        const result = await invoke('test_asr_connection', { config });
+        statusDiv.textContent = result;
         statusDiv.className = 'status-message success';
     } catch (error) {
-        statusDiv.textContent = 'ASR 连接失败: ' + error;
+        statusDiv.textContent = error;
         statusDiv.className = 'status-message error';
     }
 });
@@ -246,14 +382,29 @@ document.getElementById('test-translate-btn').addEventListener('click', async ()
     statusDiv.className = 'status-message';
     
     try {
-        // TODO: Implement translate connection test
-        // For now, just simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Build config from current input values
+        const config = {
+            asr: {
+                provider: document.getElementById('asr-provider').value,
+                file_model: document.getElementById('asr-file-model').value,
+                realtime_model: document.getElementById('asr-realtime-model').value,
+                api_key: document.getElementById('asr-api-key').value,
+                workspace_id: document.getElementById('asr-workspace-id').value.trim() || null,
+            },
+            translate: {
+                provider: document.getElementById('translate-provider').value,
+                model: document.getElementById('translate-model').value,
+                api_key: document.getElementById('translate-api-key').value,
+                target_lang: document.getElementById('translate-target-lang').value,
+            },
+            oss: null, // Not needed for translate test
+        };
         
-        statusDiv.textContent = '翻译连接成功';
+        const result = await invoke('test_translate_connection', { config });
+        statusDiv.textContent = result;
         statusDiv.className = 'status-message success';
     } catch (error) {
-        statusDiv.textContent = '翻译连接失败: ' + error;
+        statusDiv.textContent = error;
         statusDiv.className = 'status-message error';
     }
 });
