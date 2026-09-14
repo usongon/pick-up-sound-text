@@ -1,3 +1,8 @@
+// Tauri 2 withGlobalTauri nests invoke under .core
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+const { open } = window.__TAURI__.dialog;
+
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -20,7 +25,7 @@ const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 
 // Tauri native drag-drop provides real file paths (unlike HTML5 drop)
-window.__TAURI__.event.listen('tauri://drag-drop', (event) => {
+listen('tauri://drag-drop', (event) => {
     dropZone.classList.remove('dragover');
     const paths = event.payload.paths;
     if (paths.length > 0) {
@@ -28,11 +33,11 @@ window.__TAURI__.event.listen('tauri://drag-drop', (event) => {
     }
 });
 
-window.__TAURI__.event.listen('tauri://drag-enter', () => {
+listen('tauri://drag-enter', () => {
     dropZone.classList.add('dragover');
 });
 
-window.__TAURI__.event.listen('tauri://drag-leave', () => {
+listen('tauri://drag-leave', () => {
     dropZone.classList.remove('dragover');
 });
 
@@ -43,7 +48,7 @@ dropZone.addEventListener('click', () => {
 fileInput.addEventListener('change', async (e) => {
     if (e.target.files.length > 0) {
         // File input doesn't provide paths in Tauri; open dialog instead
-        const filePath = await window.__TAURI__.dialog.open({
+        const filePath = await open({
             multiple: false,
             filters: [{
                 name: 'Video',
@@ -74,7 +79,7 @@ document.getElementById('start-processing-btn').addEventListener('click', async 
     const displayName = pendingFilePath.split('/').pop() || pendingFilePath.split('\\').pop();
 
     try {
-        const result = await window.__TAURI__.invoke('start_file_processing', {
+        const result = await invoke('start_file_processing', {
             videoPath: pendingFilePath,
             sourceLanguage: sourceLanguage,
         });
@@ -120,7 +125,7 @@ function startProgressPolling() {
 
     progressInterval = setInterval(async () => {
         try {
-            const progress = await window.__TAURI__.invoke('get_processing_progress');
+            const progress = await invoke('get_processing_progress');
             updateProgress(progress);
 
             if (progress >= 1.0) {
@@ -144,7 +149,7 @@ function updateProgress(progress) {
 // Settings page logic
 async function loadConfig() {
     try {
-        const config = await window.__TAURI__.invoke('get_config');
+        const config = await invoke('get_config');
         
         // ASR config
         document.getElementById('asr-provider').value = config.asr.provider;
@@ -179,7 +184,7 @@ async function saveConfig() {
             },
         };
         
-        await window.__TAURI__.invoke('save_config', { config });
+        await invoke('save_config', { config });
         
         statusDiv.textContent = '配置已保存';
         statusDiv.className = 'status-message success';
@@ -268,7 +273,7 @@ async function exportSubtitle(format) {
     statusDiv.className = 'status-message';
     
     try {
-        const path = await window.__TAURI__.invoke('export_subtitle', { format });
+        const path = await invoke('export_subtitle', { format });
         statusDiv.textContent = `导出成功: ${path}`;
         statusDiv.className = 'status-message success';
     } catch (error) {
