@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PickUpSound",
+  "productName": "Lexecho",
   "version": "0.1.0",
-  "identifier": "com.usongon.pick-up-sound",
+  "identifier": "com.usongon.lexecho",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "拾言 - PickUpSound",
+        "title": "拾言 - Lexecho",
         "width": 1200,
         "height": 800
       }

@@ -1,4 +1,4 @@
-# PickUpSound (拾言)
+# Lexecho (拾言)
 
 A cross-platform desktop app that turns video files into translated subtitles. Drop a video, pick the language, get an SRT/VTT file.
 
