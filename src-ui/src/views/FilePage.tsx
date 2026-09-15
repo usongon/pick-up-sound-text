@@ -241,10 +241,11 @@ export default function FilePage({ active }: { active: boolean }) {
               <div
                 className="mono"
                 style={{
-                  fontSize: 11,
-                  letterSpacing: 2,
-                  color: token.colorTextTertiary,
-                  padding: "8px 0 6px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: 1.5,
+                  color: "#6b7280",
+                  padding: "10px 0 8px",
                 }}
               >
                 最近处理
@@ -262,34 +263,34 @@ export default function FilePage({ active }: { active: boolean }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
-                    padding: "10px 8px",
+                    padding: "11px 10px",
                     borderRadius: 8,
                     cursor: "pointer",
                     borderBottom:
                       i < recentTasks.length - 1
-                        ? "1px solid rgba(17, 24, 39, 0.06)"
+                        ? "1px solid rgba(17, 24, 39, 0.12)"
                         : "none",
                     transition: "background 0.15s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.55)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
                   }}
                 >
                   <VideoCameraOutlined
-                    style={{ fontSize: 13, color: PRIMARY, flex: "none" }}
+                    style={{ fontSize: 14, color: PRIMARY, flex: "none" }}
                   />
                   <Typography.Text
                     ellipsis
-                    style={{ fontSize: 13, flex: 1, minWidth: 0, color: token.colorText }}
+                    style={{ fontSize: 13.5, flex: 1, minWidth: 0, color: token.colorText }}
                   >
                     {rt.file_name}
                   </Typography.Text>
                   <span
                     className="mono"
-                    style={{ fontSize: 10.5, color: token.colorTextTertiary, flex: "none" }}
+                    style={{ fontSize: 11, color: "#6b7280", flex: "none" }}
                   >
                     {formatRelativeTime(rt.modified_at)}
                   </span>
