@@ -17,7 +17,12 @@ impl OssUploader {
     pub fn new(config: OssConfig) -> Self {
         Self {
             config,
-            client: Client::new(),
+            // 大文件上传需要较长总超时，但连接必须快速失败，避免永久悬死
+            client: Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(10))
+                .timeout(std::time::Duration::from_secs(600))
+                .build()
+                .expect("failed to build reqwest client"),
         }
     }
 

@@ -79,6 +79,7 @@ pub async fn start_file_processing(
         base_url: base_url.to_string(),
         model: config.translate.model.clone(),
         api_key: config.translate.api_key.clone(),
+        timeout_secs: 60,
     };
 
     // Create pipeline
@@ -262,6 +263,7 @@ pub async fn test_translate_connection(config: AppConfig) -> Result<String, Stri
         base_url: base_url.to_string(),
         model: config.translate.model.clone(),
         api_key: config.translate.api_key.clone(),
+        timeout_secs: 30,
     };
 
     match provider.test_connection().await {

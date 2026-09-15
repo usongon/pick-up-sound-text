@@ -3,17 +3,29 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::json;
+use std::time::Duration;
+
+const MAX_ATTEMPTS: u32 = 3;
+const RETRY_BACKOFF_SECS: [u64; 2] = [2, 5];
+
+fn build_client(timeout_secs: u64) -> Client {
+    Client::builder()
+        .timeout(Duration::from_secs(timeout_secs))
+        .build()
+        .expect("failed to build reqwest client")
+}
 
 pub struct OpenAiCompatibleProvider {
     pub base_url: String,
     pub model: String,
     pub api_key: String,
+    pub timeout_secs: u64,
 }
 
 #[async_trait]
 impl TranslateProvider for OpenAiCompatibleProvider {
     async fn translate(&self, req: TranslateRequest) -> Result<TranslateResponse> {
-        let client = Client::new();
+        let client = build_client(self.timeout_secs);
         
         // Build context from previous sentences
         let context_text = if req.context.is_empty() {
@@ -58,15 +70,36 @@ impl TranslateProvider for OpenAiCompatibleProvider {
             "max_tokens": 500
         });
         
-        // Send request
-        let response = client
-            .post(format!("{}/chat/completions", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| Error::Translate(format!("HTTP request failed: {}", e)))?;
+        // Send request, retrying transient network errors (timeouts, dropped
+        // connections). API-level errors are returned as-is without retry.
+        let url = format!("{}/chat/completions", self.base_url);
+        let mut attempt = 1u32;
+        let response = loop {
+            match client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(resp) => break resp,
+                Err(e) if attempt < MAX_ATTEMPTS => {
+                    tracing::warn!(
+                        "Translate request failed (attempt {}/{}): {} — retrying in {}s",
+                        attempt, MAX_ATTEMPTS, e, RETRY_BACKOFF_SECS[(attempt - 1) as usize]
+                    );
+                    tokio::time::sleep(Duration::from_secs(RETRY_BACKOFF_SECS[(attempt - 1) as usize])).await;
+                    attempt += 1;
+                }
+                Err(e) => {
+                    return Err(Error::Translate(format!(
+                        "HTTP request failed after {} attempts: {}",
+                        attempt, e
+                    )));
+                }
+            }
+        };
         
         if !response.status().is_success() {
             let status = response.status();
@@ -91,7 +124,7 @@ impl TranslateProvider for OpenAiCompatibleProvider {
     }
     
     async fn test_connection(&self) -> Result<()> {
-        let client = Client::new();
+        let client = build_client(self.timeout_secs);
         
         // Send minimal test request
         let body = json!({
@@ -119,7 +152,59 @@ impl TranslateProvider for OpenAiCompatibleProvider {
             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
             return Err(Error::Translate(format!("API error {}: {}", status, error_text)));
         }
-        
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    // Regression: a server that accepts connections but never responds must
+    // produce an error within a bounded time (timeout + retries), not hang.
+    #[tokio::test]
+    async fn translate_hanging_server_times_out_and_retries() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let counter = connections.clone();
+        tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((sock, _)) = listener.accept().await {
+                counter.fetch_add(1, Ordering::SeqCst);
+                held.push(sock); // hold open so the client can only time out
+            }
+        });
+
+        let provider = OpenAiCompatibleProvider {
+            base_url: format!("http://{}", addr),
+            model: "test-model".to_string(),
+            api_key: "key".to_string(),
+            timeout_secs: 1,
+        };
+        let req = TranslateRequest {
+            text: "hi".to_string(),
+            source_lang: "en".to_string(),
+            target_lang: "zh".to_string(),
+            context: vec![],
+            glossary: None,
+        };
+
+        let start = std::time::Instant::now();
+        let result = provider.translate(req).await;
+        let elapsed = start.elapsed();
+
+        assert!(result.is_err(), "expected error, got {:?}", result);
+        // 3 attempts × 1s timeout + 2s/5s backoff ≈ 10s; must not hang
+        assert!(elapsed >= Duration::from_secs(8), "too fast: {:?}", elapsed);
+        assert!(elapsed < Duration::from_secs(30), "too slow: {:?}", elapsed);
+        assert!(
+            connections.load(Ordering::SeqCst) >= 2,
+            "expected retries, connections = {}",
+            connections.load(Ordering::SeqCst)
+        );
     }
 }

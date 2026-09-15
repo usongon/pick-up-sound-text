@@ -15,7 +15,12 @@ pub struct DashScopeFileTransProvider {
 #[async_trait]
 impl FileAsrProvider for DashScopeFileTransProvider {
     async fn transcribe_file(&self, config: &AsrConfig, audio_path: &Path) -> Result<FileTranscriptionResult> {
-        let client = Client::new();
+        // 提交/轮询/下载结果均为小请求，超时兜底防永久悬死
+        let client = Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(300))
+            .build()
+            .expect("failed to build reqwest client");
         let api_key = config.api_key.trim();
         
         // Build base URL with workspace ID
