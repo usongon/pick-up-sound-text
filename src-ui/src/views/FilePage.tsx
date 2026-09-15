@@ -2,23 +2,26 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   App as AntdApp,
   Button,
+  List,
   Progress,
   Select,
+  Steps,
+  Tooltip,
   Typography,
   message as staticMessage,
   theme as antdTheme,
 } from "antd";
 import {
-  ArrowDownOutlined,
+  InboxOutlined,
   VideoCameraOutlined,
   PlayCircleOutlined,
   DownloadOutlined,
   ReloadOutlined,
-  CheckCircleFilled,
 } from "@ant-design/icons";
 import { BackendContext } from "../lib/backend";
 import { basename } from "../lib/types";
 import type { PipelineStateName, ProgressInfo, RecentTask } from "../lib/types";
+import { PRIMARY } from "../theme";
 
 const LANGUAGES = [
   { value: "auto", label: "自动识别" },
@@ -28,9 +31,7 @@ const LANGUAGES = [
   { value: "ko", label: "韩文" },
 ];
 
-const STEP_NAMES = ["提取", "转写", "翻译", "完成"];
-
-const STATE_LABEL: Record<PipelineStateName, string> = {
+const STATUS_LABEL: Record<PipelineStateName, string> = {
   idle: "准备中",
   processing: "处理中",
   completed: "已完成",
@@ -200,12 +201,14 @@ export default function FilePage({ active }: { active: boolean }) {
     return `${Math.floor(diff / 86400)} 天前`;
   };
 
+  const gradientStroke = { "0%": "#6366f1", "100%": "#8b5cf6" } as const;
+
   return (
     <div className="view" aria-hidden={!active}>
       {!file ? (
         <>
           <div
-            className={`drop-strip ${dragOver ? "over" : ""}`}
+            className={`drop-card ${dragOver ? "over" : ""}`}
             role="button"
             tabIndex={0}
             aria-label="选择或拖入视频文件"
@@ -215,14 +218,14 @@ export default function FilePage({ active }: { active: boolean }) {
             }}
           >
             <div className="drop-icon">
-              <ArrowDownOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+              <InboxOutlined style={{ fontSize: 24, color: "#fff" }} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                {dragOver ? "松开即可选择" : "拖入视频文件"}
+              <div style={{ fontSize: 15, fontWeight: 600 }}>
+                {dragOver ? "松开即可选择" : "拖入视频文件，或点击选择"}
               </div>
-              <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 3 }}>
-                或点击此处选择
+              <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 4 }}>
+                自动提取音频、转写并翻译为双语字幕，导出 SRT / VTT
               </div>
             </div>
             <div className="drop-formats mono">
@@ -235,43 +238,77 @@ export default function FilePage({ active }: { active: boolean }) {
           </div>
 
           {recentTasks.length > 0 && (
-            <div className="recent">
-              <div className="recent-label mono">最近</div>
-              {recentTasks.map((rt) => (
-                <div
-                  key={rt.task_id}
-                  className="recent-row"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => selectFile(rt.video_path)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
-                  }}
-                >
-                  <VideoCameraOutlined
-                    style={{ fontSize: 12, color: token.colorTextTertiary, flex: "none" }}
-                  />
-                  <span className="recent-name">{rt.file_name}</span>
-                  <span className="recent-time mono">{formatRelativeTime(rt.modified_at)}</span>
-                </div>
-              ))}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: 16,
+                padding: "4px 8px",
+                boxShadow: "0 1px 3px rgba(17, 24, 39, 0.05)",
+              }}
+            >
+              <List
+                size="small"
+                header={
+                  <span
+                    className="mono"
+                    style={{ fontSize: 11, letterSpacing: 2, color: token.colorTextTertiary }}
+                  >
+                    最近处理
+                  </span>
+                }
+                dataSource={recentTasks}
+                renderItem={(rt) => (
+                  <List.Item
+                    style={{ cursor: "pointer", borderRadius: 10, paddingInline: 8 }}
+                    onClick={() => selectFile(rt.video_path)}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <VideoCameraOutlined
+                          style={{ fontSize: 15, color: PRIMARY, marginTop: 8 }}
+                        />
+                      }
+                      title={<Typography.Text style={{ fontSize: 13 }}>{rt.file_name}</Typography.Text>}
+                      description={
+                        <span className="mono" style={{ fontSize: 10.5 }}>
+                          {formatRelativeTime(rt.modified_at)}
+                        </span>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
             </div>
           )}
         </>
       ) : (
         <>
-          <div className="file-header">
-            <VideoCameraOutlined
-              style={{ fontSize: 15, color: token.colorPrimary, flex: "none" }}
-            />
-            <div className="file-title">
-              <Typography.Text strong ellipsis style={{ fontSize: 13, display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 11,
+                flex: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#eef2ff",
+              }}
+            >
+              <VideoCameraOutlined style={{ fontSize: 17, color: PRIMARY }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Typography.Text strong ellipsis style={{ fontSize: 13.5, display: "block" }}>
                 {file.name}
               </Typography.Text>
               <div
                 className="mono"
                 style={{
-                  fontSize: 10,
+                  fontSize: 10.5,
                   color: token.colorTextTertiary,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -281,84 +318,75 @@ export default function FilePage({ active }: { active: boolean }) {
                 {file.path}
               </div>
             </div>
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined />}
-              onClick={onPickFile}
-              disabled={taskRunning}
-              aria-label="重新选择文件"
-            />
+            <Tooltip title="重新选择文件">
+              <Button
+                type="text"
+                icon={<ReloadOutlined />}
+                onClick={onPickFile}
+                disabled={taskRunning}
+                aria-label="重新选择文件"
+              />
+            </Tooltip>
             <Select
-              size="small"
               value={language}
               onChange={setLanguage}
               options={LANGUAGES}
-              style={{ width: 100 }}
+              style={{ width: 118 }}
               aria-label="视频语言"
               disabled={taskRunning}
             />
             <Button
               type="primary"
-              size="small"
               icon={<PlayCircleOutlined />}
               loading={starting}
               disabled={taskRunning}
               onClick={onStart}
             >
-              {task && done ? "重新处理" : "开始"}
+              {task && done ? "重新处理" : "开始转字幕"}
             </Button>
           </div>
 
           {task && (
             <div className="task-panel">
               <div className="task-inner">
-                <div className="steps-mono mono">
-                  {STEP_NAMES.map((s, i) => (
-                    <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      <span className={i === stepIndex ? "on" : i < stepIndex ? "done" : ""}>
-                        {i < stepIndex ? "✓ " : ""}
-                        {s}
-                      </span>
-                      {i < STEP_NAMES.length - 1 && <span className="sep">·</span>}
-                    </span>
-                  ))}
-                </div>
+                <Steps
+                  size="small"
+                  current={stepIndex}
+                  status={failed ? "error" : undefined}
+                  items={[
+                    { title: "提取音频" },
+                    { title: "转写" },
+                    { title: "翻译" },
+                    { title: "完成" },
+                  ]}
+                  style={{ marginBottom: 18 }}
+                />
 
-                <div className="pct-row">
-                  {done ? (
-                    <CheckCircleFilled
-                      style={{ fontSize: 38, color: token.colorSuccess, alignSelf: "center" }}
-                    />
-                  ) : (
-                    <>
-                      <span className="pct mono">{pct}</span>
-                      <span className="pct-sign mono">%</span>
-                    </>
-                  )}
+                <div
+                  style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 12 }}
+                >
+                  <span className="pct grad-text mono">{pct}</span>
+                  <span className="pct-sign mono">%</span>
                   <span
                     style={{
                       marginLeft: "auto",
-                      fontSize: 10,
+                      fontSize: 12,
                       color: failed ? token.colorError : token.colorTextTertiary,
-                      letterSpacing: 1,
                     }}
-                    className="mono"
                   >
-                    {STATE_LABEL[task.progress.state].toUpperCase()}
+                    {STATUS_LABEL[task.progress.state]}
                   </span>
                 </div>
 
                 <Progress
                   percent={pct}
                   showInfo={false}
-                  size={["100%", 3]}
+                  strokeColor={failed ? undefined : gradientStroke}
                   status={failed ? "exception" : done ? "success" : "active"}
-                  strokeColor={failed ? undefined : token.colorPrimary}
                 />
                 <div className="task-status-line">
                   {failed ? (
-                    <Typography.Text type="danger" style={{ fontSize: 11.5 }}>
+                    <Typography.Text type="danger" style={{ fontSize: 12.5 }}>
                       {task.progress.error ?? "未知错误"}
                     </Typography.Text>
                   ) : task.progress.state === "processing" ? (
@@ -397,3 +425,4 @@ export default function FilePage({ active }: { active: boolean }) {
     </div>
   );
 }
+

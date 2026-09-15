@@ -1,73 +1,80 @@
 import { theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
 
-export const ACCENT = "#f59e0b";
-export const BG = "#0b1120";
-export const PANEL = "#111827";
-export const ELEVATED = "#1a2438";
-export const HAIRLINE = "rgba(255,255,255,0.07)";
+export const PRIMARY = "#6366f1";
+export const PRIMARY_SOFT = "#eef2ff";
+export const GRADIENT = "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)";
 
 const FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif';
-export const MONO_FAMILY =
-  'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
 
-// Studio Dark：暗色单主题、等宽数字、发丝线分割、琥珀橙唯一强调色
-export const studioTheme: ThemeConfig = {
-  algorithm: antdTheme.darkAlgorithm,
+// 小清新亮色主题：白面板 + 柔和阴影 + indigo→violet 渐变强调
+export const freshTheme: ThemeConfig = {
+  algorithm: antdTheme.defaultAlgorithm,
   token: {
-    colorPrimary: ACCENT,
-    colorInfo: ACCENT,
-    colorLink: "#fbbf24",
-    colorBgBase: BG,
-    colorBgLayout: BG,
-    colorBgContainer: PANEL,
-    colorBgElevated: ELEVATED,
-    colorText: "#e7ecf3",
-    colorTextSecondary: "#94a3b8",
-    colorTextTertiary: "#64748b",
-    colorBorder: "rgba(255,255,255,0.14)",
-    colorBorderSecondary: HAIRLINE,
-    colorSuccess: "#34d399",
-    colorError: "#f87171",
-    colorWarning: ACCENT,
-    borderRadius: 6,
-    fontSize: 12,
-    controlHeight: 28,
+    colorPrimary: PRIMARY,
+    colorInfo: PRIMARY,
+    colorLink: "#6366f1",
+    colorBgLayout: "#f6f7fb",
+    colorBgContainer: "#ffffff",
+    colorText: "#1f2937",
+    colorTextSecondary: "#6b7280",
+    colorTextTertiary: "#9ca3af",
+    colorBorder: "#e5e7eb",
+    colorBorderSecondary: "#eef0f4",
+    colorSuccess: "#10b981",
+    colorError: "#ef4444",
+    colorWarning: "#f59e0b",
+    borderRadius: 10,
+    fontSize: 13,
+    controlHeight: 32,
     fontFamily: FONT_FAMILY,
+    boxShadow: "0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04)",
+    boxShadowSecondary: "0 6px 24px rgba(17, 24, 39, 0.10)",
   },
   components: {
     Segmented: {
-      trackBg: "#0d1526",
-      itemSelectedBg: ACCENT,
-      itemSelectedColor: "#0b1120",
-      itemColor: "#94a3b8",
-      itemHoverColor: "#e7ecf3",
-      borderRadius: 6,
-      borderRadiusSM: 5,
+      itemSelectedBg: PRIMARY,
+      itemSelectedColor: "#ffffff",
+      trackBg: "#eef0f6",
+      itemColor: "#6b7280",
+      itemHoverColor: "#1f2937",
+      borderRadius: 8,
+      borderRadiusSM: 7,
     },
     Button: {
       fontWeight: 500,
-      primaryShadow: "none",
+      primaryShadow: "0 4px 12px rgba(99, 102, 241, 0.30)",
       defaultShadow: "none",
       dangerShadow: "none",
+      controlHeight: 32,
+    },
+    Card: {
+      borderRadiusLG: 16,
+      boxShadowTertiary: "0 1px 3px rgba(17, 24, 39, 0.06)",
     },
     Form: {
-      labelColor: "#94a3b8",
-      labelFontSize: 12,
-      verticalLabelPadding: "0 0 4px",
+      labelColor: "#374151",
+      labelFontSize: 13,
+      verticalLabelPadding: "0 0 6px",
     },
     Input: {
-      activeShadow: "0 0 0 2px rgba(245, 158, 11, 0.18)",
+      activeShadow: "0 0 0 3px rgba(99, 102, 241, 0.12)",
+    },
+    Drawer: {
+      colorBgElevated: "#ffffff",
     },
     Progress: {
-      remainingColor: "rgba(255,255,255,0.09)",
+      remainingColor: "#eceef5",
     },
-    Tag: {
-      borderRadiusSM: 4,
+    Steps: {
+      colorPrimary: PRIMARY,
     },
     Divider: {
-      colorSplit: HAIRLINE,
+      colorSplit: "#eef0f4",
+    },
+    Tag: {
+      borderRadiusSM: 6,
     },
   },
 };

@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, ConfigProvider, Segmented } from "antd";
+import { App as AntdApp, Button, ConfigProvider, Segmented, Tooltip } from "antd";
+import { SettingOutlined } from "@ant-design/icons";
 import { BackendContext, getBackend } from "./lib/backend";
-import { studioTheme } from "./theme";
+import { freshTheme } from "./theme";
 import type { AppConfig } from "./lib/types";
 import FilePage from "./views/FilePage";
 import RealtimePage from "./views/RealtimePage";
-import SettingsPage from "./views/SettingsPage";
+import SettingsDrawer from "./views/SettingsDrawer";
 import "./styles.css";
 
-type ViewKey = "file" | "realtime" | "settings";
+type ViewKey = "file" | "realtime";
 
 const SEG_OPTIONS = [
-  { value: "file", label: "转字幕" },
-  { value: "realtime", label: "实时" },
-  { value: "settings", label: "设置" },
+  { value: "file", label: "文件转字幕" },
+  { value: "realtime", label: "实时字幕" },
 ];
 
 const VIEW_STATUS: Record<ViewKey, string> = {
   file: "文件转字幕",
   realtime: "实时字幕",
-  settings: "设置",
 };
 
 export default function App() {
   const [view, setView] = useState<ViewKey>("file");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const backend = useMemo(() => getBackend(), []);
   const [config, setConfig] = useState<AppConfig | null>(null);
 
@@ -41,44 +41,51 @@ export default function App() {
   ];
 
   return (
-    <ConfigProvider theme={studioTheme}>
+    <ConfigProvider theme={freshTheme}>
       <BackendContext.Provider value={backend}>
         <AntdApp>
           <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* 工具栏式标题栏：左让位红绿灯，中分段控制器（不可拖拽），两侧可拖拽移动窗口 */}
+            {/* macOS Overlay：红绿灯悬浮左侧，中央分段导航，右侧设置齿轮 */}
             <div className="titlebar">
               <div className="titlebar-zone titlebar-left" data-tauri-drag-region />
               <Segmented
                 value={view}
                 onChange={(v) => setView(v as ViewKey)}
                 options={SEG_OPTIONS}
-                aria-label="导航"
+                aria-label="主导航"
               />
               <div className="titlebar-zone titlebar-right" data-tauri-drag-region>
                 {backend.mocked && (
-                  <span className="mock-pill mono">
+                  <span className="demo-pill mono">
                     <i />
                     DEMO
                   </span>
                 )}
+                <Tooltip title="设置">
+                  <Button
+                    type={settingsOpen ? "primary" : "text"}
+                    shape="circle"
+                    size="small"
+                    icon={<SettingOutlined />}
+                    aria-label="设置"
+                    onClick={() => setSettingsOpen(true)}
+                  />
+                </Tooltip>
               </div>
             </div>
 
             <div className="app-body">
-              {/* 三个视图常驻挂载，保留状态；拖拽监听不因切页而丢失 */}
+              {/* 两个主视图常驻挂载，保留状态；拖拽监听不因切页而丢失 */}
               <div style={{ display: view === "file" ? "flex" : "none", flex: 1, minHeight: 0 }}>
                 <FilePage active={view === "file"} />
               </div>
               <div style={{ display: view === "realtime" ? "flex" : "none", flex: 1, minHeight: 0 }}>
                 <RealtimePage active={view === "realtime"} />
               </div>
-              <div style={{ display: view === "settings" ? "flex" : "none", flex: 1, minHeight: 0 }}>
-                <SettingsPage active={view === "settings"} />
-              </div>
             </div>
 
-            <div className="statusbar mono">
-              <span>{VIEW_STATUS[view]}</span>
+            <div className="statusbar">
+              <span>{settingsOpen ? "设置" : VIEW_STATUS[view]}</span>
               <div className="statusbar-right">
                 {cfgItems.map((c) => (
                   <span
@@ -86,10 +93,10 @@ export default function App() {
                     className={`cfg-dot mono ${c.ok ? "on" : ""}`}
                     role="button"
                     tabIndex={0}
-                    title={c.ok ? `${c.key} 已配置` : `${c.key} 未配置`}
-                    onClick={() => setView("settings")}
+                    title={c.ok ? `${c.key} 已配置` : `${c.key} 未配置，点击前往设置`}
+                    onClick={() => setSettingsOpen(true)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") setView("settings");
+                      if (e.key === "Enter" || e.key === " ") setSettingsOpen(true);
                     }}
                   >
                     <i />
@@ -98,6 +105,8 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           </div>
         </AntdApp>
       </BackendContext.Provider>
