@@ -17,6 +17,7 @@ import {
 import { BackendContext } from "../lib/backend";
 import { defaultConfig } from "../lib/types";
 import type { AppConfig } from "../lib/types";
+import { version as APP_VERSION } from "../../package.json";
 
 const TRANSLATE_PROVIDERS = [
   { value: "openai", label: "OpenAI", model: "gpt-3.5-turbo" },
@@ -37,7 +38,7 @@ type SectionKey = "asr" | "translate" | "oss";
 const SECTIONS: { key: SectionKey; label: string; icon: React.ReactNode }[] = [
   { key: "asr", label: "语音识别", icon: <SoundOutlined /> },
   { key: "translate", label: "翻译", icon: <TranslationOutlined /> },
-  { key: "oss", label: "对象存储 OSS", icon: <CloudServerOutlined /> },
+  { key: "oss", label: "对象存储", icon: <CloudServerOutlined /> },
 ];
 
 interface FormValues {
@@ -197,31 +198,31 @@ export default function SettingsPage({ active }: { active: boolean }) {
     }
   };
 
+  const fieldStyle = { marginBottom: 12 };
+
   return (
-    <div className="settings-row" aria-hidden={!active}>
+    <div className="settings-row view" aria-hidden={!active}>
       <div className="settings-nav">
         {SECTIONS.map((s) => (
           <div
             key={s.key}
-            className="settings-nav-item"
+            className={`settings-nav-item ${section === s.key ? "on" : ""}`}
             role="button"
             tabIndex={0}
             onClick={() => setSection(s.key)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") setSection(s.key);
             }}
-            style={{
-              background: section === s.key ? token.colorFillQuaternary : "transparent",
-              color: section === s.key ? token.colorText : token.colorTextSecondary,
-              fontWeight: section === s.key ? 600 : 400,
-            }}
           >
-            <span style={{ color: section === s.key ? token.colorPrimary : token.colorTextTertiary, display: "flex" }}>
-              {s.icon}
-            </span>
+            <span style={{ fontSize: 12, display: "flex" }}>{s.icon}</span>
             {s.label}
           </div>
         ))}
+        <div style={{ marginTop: "auto", padding: "0 10px" }}>
+          <span className="mono" style={{ fontSize: 10, color: token.colorTextTertiary }}>
+            v{APP_VERSION}
+          </span>
+        </div>
       </div>
 
       <Form
@@ -234,32 +235,30 @@ export default function SettingsPage({ active }: { active: boolean }) {
         <div className="settings-form-inner">
           {section === "asr" && (
             <>
-              <div className="section-label" style={{ color: token.colorTextTertiary }}>
-                语音识别 · 百炼 DashScope
-              </div>
-              <Form.Item name={["asr", "provider"]} label="渠道" style={{ marginBottom: 12 }}>
+              <div className="section-label mono">语音识别 · 百炼</div>
+              <Form.Item name={["asr", "provider"]} label="渠道" style={fieldStyle}>
                 <Select options={[{ value: "dashscope", label: "百炼（DashScope）" }]} />
               </Form.Item>
               <Form.Item
                 name={["asr", "file_model"]}
                 label="文件转写模型"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 rules={[{ required: true, message: "请填写文件转写模型" }]}
               >
-                <Input allowClear />
+                <Input allowClear className="mono" />
               </Form.Item>
               <Form.Item
                 name={["asr", "realtime_model"]}
                 label="实时识别模型"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 rules={[{ required: true, message: "请填写实时识别模型" }]}
               >
-                <Input allowClear />
+                <Input allowClear className="mono" />
               </Form.Item>
               <Form.Item
                 name={["asr", "api_key"]}
                 label="百炼 API Key"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 rules={[{ required: true, message: "请填写百炼 API Key" }]}
               >
                 <Input.Password placeholder="输入百炼 API Key" />
@@ -267,18 +266,18 @@ export default function SettingsPage({ active }: { active: boolean }) {
               <Form.Item
                 name={["asr", "workspace_id"]}
                 label="业务空间 Workspace ID"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 extra="北京区域必填，在百炼控制台右上角获取"
               >
-                <Input placeholder="例如 llm-xxxxxxxxxxxx" allowClear />
+                <Input placeholder="例如 llm-xxxxxxxxxxxx" allowClear className="mono" />
               </Form.Item>
               <Divider style={{ margin: "4px 0 14px" }} />
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 <Button loading={testingAsr} onClick={onTestAsr} icon={<ApiOutlined />}>
                   测试连通性
                 </Button>
                 <Button type="primary" loading={saving} onClick={onSave}>
-                  保存配置
+                  保存
                 </Button>
               </div>
             </>
@@ -286,36 +285,34 @@ export default function SettingsPage({ active }: { active: boolean }) {
 
           {section === "translate" && (
             <>
-              <div className="section-label" style={{ color: token.colorTextTertiary }}>
-                翻译
-              </div>
-              <Form.Item name={["translate", "provider"]} label="渠道" style={{ marginBottom: 12 }}>
+              <div className="section-label mono">翻译</div>
+              <Form.Item name={["translate", "provider"]} label="渠道" style={fieldStyle}>
                 <Select
                   options={TRANSLATE_PROVIDERS.map(({ value, label }) => ({ value, label }))}
                   onChange={onProviderChange}
                 />
               </Form.Item>
-              <Form.Item name={["translate", "model"]} label="模型" style={{ marginBottom: 12 }}>
-                <Input allowClear />
+              <Form.Item name={["translate", "model"]} label="模型" style={fieldStyle}>
+                <Input allowClear className="mono" />
               </Form.Item>
               <Form.Item
                 name={["translate", "api_key"]}
                 label="API Key"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 rules={[{ required: true, message: "请填写翻译 API Key" }]}
               >
                 <Input.Password placeholder="输入翻译 API Key" />
               </Form.Item>
-              <Form.Item name={["translate", "target_lang"]} label="目标语言" style={{ marginBottom: 12 }}>
+              <Form.Item name={["translate", "target_lang"]} label="目标语言" style={fieldStyle}>
                 <Select options={TARGET_LANGUAGES} />
               </Form.Item>
               <Divider style={{ margin: "4px 0 14px" }} />
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 <Button loading={testingTranslate} onClick={onTestTranslate} icon={<ApiOutlined />}>
                   测试连通性
                 </Button>
                 <Button type="primary" loading={saving} onClick={onSave}>
-                  保存配置
+                  保存
                 </Button>
               </div>
             </>
@@ -323,40 +320,34 @@ export default function SettingsPage({ active }: { active: boolean }) {
 
           {section === "oss" && (
             <>
-              <div className="section-label" style={{ color: token.colorTextTertiary }}>
-                对象存储 OSS
-              </div>
-              <Form.Item
-                name={["oss", "endpoint"]}
-                label="Endpoint"
-                style={{ marginBottom: 12 }}
-              >
-                <Input placeholder="例如 oss-cn-beijing.aliyuncs.com" allowClear />
+              <div className="section-label mono">对象存储 OSS</div>
+              <Form.Item name={["oss", "endpoint"]} label="Endpoint" style={fieldStyle}>
+                <Input placeholder="例如 oss-cn-beijing.aliyuncs.com" allowClear className="mono" />
               </Form.Item>
-              <Form.Item name={["oss", "bucket"]} label="Bucket 名称" style={{ marginBottom: 12 }}>
-                <Input placeholder="例如 my-audio-bucket" allowClear />
+              <Form.Item name={["oss", "bucket"]} label="Bucket 名称" style={fieldStyle}>
+                <Input placeholder="例如 my-audio-bucket" allowClear className="mono" />
               </Form.Item>
-              <Form.Item name={["oss", "access_key_id"]} label="Access Key ID" style={{ marginBottom: 12 }}>
+              <Form.Item name={["oss", "access_key_id"]} label="Access Key ID" style={fieldStyle}>
                 <Input.Password placeholder="输入 OSS Access Key ID" />
               </Form.Item>
               <Form.Item
                 name={["oss", "access_key_secret"]}
                 label="Access Key Secret"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
               >
                 <Input.Password placeholder="输入 OSS Access Key Secret" />
               </Form.Item>
               <Form.Item
                 name={["oss", "path_prefix"]}
                 label="路径前缀（可选）"
-                style={{ marginBottom: 12 }}
+                style={fieldStyle}
                 extra="文件转写需要 OSS 托管音频，处理完成后自动删除"
               >
-                <Input placeholder="例如 shiyane-temp/" allowClear />
+                <Input placeholder="例如 shiyane-temp/" allowClear className="mono" />
               </Form.Item>
               <Divider style={{ margin: "4px 0 14px" }} />
               <Button type="primary" loading={saving} onClick={onSave}>
-                保存配置
+                保存
               </Button>
             </>
           )}

@@ -1,131 +1,101 @@
-import { useMemo, useState } from "react";
-import {
-  App as AntdApp,
-  Button,
-  ConfigProvider,
-  Layout,
-  Menu,
-  Tag,
-  Tooltip,
-  theme as antdTheme,
-} from "antd";
-import {
-  FileTextOutlined,
-  AudioOutlined,
-  SettingOutlined,
-  MoonOutlined,
-  SunOutlined,
-} from "@ant-design/icons";
-import { version } from "../package.json";
+import { useEffect, useMemo, useState } from "react";
+import { App as AntdApp, ConfigProvider, Segmented } from "antd";
 import { BackendContext, getBackend } from "./lib/backend";
-import { darkTheme, lightTheme } from "./theme";
+import { studioTheme } from "./theme";
+import type { AppConfig } from "./lib/types";
 import FilePage from "./views/FilePage";
 import RealtimePage from "./views/RealtimePage";
 import SettingsPage from "./views/SettingsPage";
-import { LogoMark } from "./components/Logo";
 import "./styles.css";
 
 type ViewKey = "file" | "realtime" | "settings";
 
-const MENU_ITEMS = [
-  { key: "file", icon: <FileTextOutlined />, label: "文件转字幕" },
-  { key: "realtime", icon: <AudioOutlined />, label: "实时字幕" },
-  { key: "settings", icon: <SettingOutlined />, label: "设置" },
+const SEG_OPTIONS = [
+  { value: "file", label: "转字幕" },
+  { value: "realtime", label: "实时" },
+  { value: "settings", label: "设置" },
 ];
+
+const VIEW_STATUS: Record<ViewKey, string> = {
+  file: "文件转字幕",
+  realtime: "实时字幕",
+  settings: "设置",
+};
 
 export default function App() {
   const [view, setView] = useState<ViewKey>("file");
-  const [dark, setDark] = useState(false);
   const backend = useMemo(() => getBackend(), []);
-  const { token } = antdTheme.useToken();
+  const [config, setConfig] = useState<AppConfig | null>(null);
 
-  const barBorder = `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`;
+  useEffect(() => {
+    backend
+      .getConfig()
+      .then(setConfig)
+      .catch(() => setConfig(null));
+  }, [backend]);
+
+  const cfgItems = [
+    { key: "ASR", ok: !!config && config.asr.api_key.length > 0 },
+    { key: "翻译", ok: !!config && config.translate.api_key.length > 0 },
+    { key: "OSS", ok: !!config && config.oss !== null },
+  ];
 
   return (
-    <ConfigProvider theme={dark ? darkTheme : lightTheme}>
+    <ConfigProvider theme={studioTheme}>
       <BackendContext.Provider value={backend}>
         <AntdApp>
           <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* macOS Overlay：红绿灯悬浮于此条左端，其余区域可拖拽窗口 */}
-            <div
-              className="titlebar"
-              data-tauri-drag-region
-              style={{
-                background: dark ? "#0d1014" : token.colorBgContainer,
-                borderBottom: barBorder,
-              }}
-            >
-              <div className="titlebar-drag" data-tauri-drag-region />
-              <Tooltip title={dark ? "切换到浅色" : "切换到深色"}>
-                <Button
-                  type="text"
-                  size="small"
-                  aria-label="切换深色模式"
-                  icon={dark ? <SunOutlined /> : <MoonOutlined />}
-                  onClick={() => setDark((d) => !d)}
-                />
-              </Tooltip>
-            </div>
-
-            <div className="main-row">
-              <Layout.Sider width={200} theme="dark" style={{ minHeight: 0, display: "flex", flexDirection: "column" }}>
-                <div className="brand">
-                  <LogoMark size={30} />
-                  <div>
-                    <div className="brand-name">拾言</div>
-                    <div className="brand-tagline">把声音变成字幕</div>
-                  </div>
-                </div>
-                <div className="sider-group-label">工作区</div>
-                <Menu
-                  theme="dark"
-                  mode="inline"
-                  selectedKeys={[view]}
-                  items={MENU_ITEMS}
-                  onClick={(e) => setView(e.key as ViewKey)}
-                  style={{ flex: 1 }}
-                />
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    borderTop: "1px solid rgba(255,255,255,0.07)",
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.3)",
-                  }}
-                >
-                  v{version}
-                </div>
-              </Layout.Sider>
-
-              <div className="pane">
-                {/* 三个视图常驻挂载，保留状态；拖拽监听不因切页而丢失 */}
-                <div style={{ display: view === "file" ? "flex" : "none", flex: 1, minHeight: 0 }}>
-                  <FilePage active={view === "file"} />
-                </div>
-                <div style={{ display: view === "realtime" ? "flex" : "none", flex: 1, minHeight: 0 }}>
-                  <RealtimePage active={view === "realtime"} />
-                </div>
-                <div style={{ display: view === "settings" ? "flex" : "none", flex: 1, minHeight: 0 }}>
-                  <SettingsPage active={view === "settings"} />
-                </div>
+            {/* 工具栏式标题栏：左让位红绿灯，中分段控制器（不可拖拽），两侧可拖拽移动窗口 */}
+            <div className="titlebar">
+              <div className="titlebar-zone titlebar-left" data-tauri-drag-region />
+              <Segmented
+                value={view}
+                onChange={(v) => setView(v as ViewKey)}
+                options={SEG_OPTIONS}
+                aria-label="导航"
+              />
+              <div className="titlebar-zone titlebar-right" data-tauri-drag-region>
+                {backend.mocked && (
+                  <span className="mock-pill mono">
+                    <i />
+                    DEMO
+                  </span>
+                )}
               </div>
             </div>
 
-            <div
-              className="statusbar"
-              style={{
-                background: dark ? "#0d1014" : token.colorBgContainer,
-                borderTop: barBorder,
-                color: token.colorTextTertiary,
-              }}
-            >
-              <span>{MENU_ITEMS.find((m) => m.key === view)?.label}</span>
+            <div className="app-body">
+              {/* 三个视图常驻挂载，保留状态；拖拽监听不因切页而丢失 */}
+              <div style={{ display: view === "file" ? "flex" : "none", flex: 1, minHeight: 0 }}>
+                <FilePage active={view === "file"} />
+              </div>
+              <div style={{ display: view === "realtime" ? "flex" : "none", flex: 1, minHeight: 0 }}>
+                <RealtimePage active={view === "realtime"} />
+              </div>
+              <div style={{ display: view === "settings" ? "flex" : "none", flex: 1, minHeight: 0 }}>
+                <SettingsPage active={view === "settings"} />
+              </div>
+            </div>
+
+            <div className="statusbar mono">
+              <span>{VIEW_STATUS[view]}</span>
               <div className="statusbar-right">
-                {backend.mocked && (
-                  <Tag style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: "18px" }}>
-                    浏览器演示模式 · 模拟数据
-                  </Tag>
-                )}
+                {cfgItems.map((c) => (
+                  <span
+                    key={c.key}
+                    className={`cfg-dot mono ${c.ok ? "on" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    title={c.ok ? `${c.key} 已配置` : `${c.key} 未配置`}
+                    onClick={() => setView("settings")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setView("settings");
+                    }}
+                  >
+                    <i />
+                    {c.key}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -134,4 +104,3 @@ export default function App() {
     </ConfigProvider>
   );
 }
-

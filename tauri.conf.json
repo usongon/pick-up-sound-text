@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "拾言 - Shiyane",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 960,
-        "minHeight": 620,
+        "width": 880,
+        "height": 600,
+        "minWidth": 720,
+        "minHeight": 500,
         "titleBarStyle": "Overlay",
         "dragDropEnabled": true
       }

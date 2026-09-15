@@ -4,20 +4,17 @@ import {
   Button,
   Progress,
   Select,
-  Steps,
-  Tag,
   Typography,
   message as staticMessage,
   theme as antdTheme,
 } from "antd";
 import {
-  InboxOutlined,
+  ArrowDownOutlined,
   VideoCameraOutlined,
   PlayCircleOutlined,
   DownloadOutlined,
   ReloadOutlined,
   CheckCircleFilled,
-  ClockCircleOutlined,
 } from "@ant-design/icons";
 import { BackendContext } from "../lib/backend";
 import { basename } from "../lib/types";
@@ -31,14 +28,15 @@ const LANGUAGES = [
   { value: "ko", label: "韩文" },
 ];
 
-const STATUS_META: Record<PipelineStateName, { label: string; color: string }> =
-  {
-    idle: { label: "准备中", color: "default" },
-    processing: { label: "处理中", color: "processing" },
-    completed: { label: "已完成", color: "success" },
-    exported: { label: "已导出", color: "success" },
-    failed: { label: "失败", color: "error" },
-  };
+const STEP_NAMES = ["提取", "转写", "翻译", "完成"];
+
+const STATE_LABEL: Record<PipelineStateName, string> = {
+  idle: "准备中",
+  processing: "处理中",
+  completed: "已完成",
+  exported: "已导出",
+  failed: "失败",
+};
 
 interface Task {
   id: string;
@@ -180,10 +178,10 @@ export default function FilePage({ active }: { active: boolean }) {
 
   const pct =
     task === null ? 0 : Math.max(0, Math.min(100, Math.round(task.progress.progress * 100)));
-  const status = task ? STATUS_META[task.progress.state] : null;
   const done =
     task !== null &&
     (task.progress.state === "completed" || task.progress.state === "exported");
+  const failed = task !== null && task.progress.state === "failed";
 
   const stepIndex = !task
     ? -1
@@ -203,11 +201,11 @@ export default function FilePage({ active }: { active: boolean }) {
   };
 
   return (
-    <div className="workspace" aria-hidden={!active}>
+    <div className="view" aria-hidden={!active}>
       {!file ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <>
           <div
-            className="dropzone-frame"
+            className={`drop-strip ${dragOver ? "over" : ""}`}
             role="button"
             tabIndex={0}
             aria-label="选择或拖入视频文件"
@@ -215,153 +213,95 @@ export default function FilePage({ active }: { active: boolean }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") onPickFile();
             }}
-            style={{
-              flex: recentTasks.length > 0 ? "none" : 1,
-              minHeight: recentTasks.length > 0 ? 200 : undefined,
-              border: `2px dashed ${dragOver ? token.colorPrimary : token.colorBorderSecondary}`,
-              background: dragOver ? token.colorPrimaryBg : "transparent",
-            }}
           >
-            <div style={{ textAlign: "center", userSelect: "none" }}>
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 16,
-                  margin: "0 auto 12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
-                  boxShadow: "0 8px 24px rgba(13, 148, 136, 0.32)",
-                }}
-              >
-                <InboxOutlined style={{ fontSize: 26, color: "#fff" }} />
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: token.colorText }}>
+            <div className="drop-icon">
+              <ArrowDownOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
                 {dragOver ? "松开即可选择" : "拖入视频文件"}
               </div>
-              <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 6 }}>
-                或点击此处选择 · 支持 mp4 / mkv / avi / mov
+              <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 3 }}>
+                或点击此处选择
               </div>
+            </div>
+            <div className="drop-formats mono">
+              {["MP4", "MKV", "AVI", "MOV"].map((f) => (
+                <span key={f} className="fmt">
+                  {f}
+                </span>
+              ))}
             </div>
           </div>
 
           {recentTasks.length > 0 && (
-            <div style={{ marginTop: 20, flexShrink: 0 }}>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: token.colorTextTertiary,
-                  marginBottom: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <ClockCircleOutlined />
-                最近处理
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {recentTasks.map((rt) => (
-                  <div
-                    key={rt.task_id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => selectFile(rt.video_path)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 12px",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = token.colorFillQuaternary;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    <VideoCameraOutlined
-                      style={{ fontSize: 14, color: token.colorPrimary, flex: "none" }}
-                    />
-                    <Typography.Text
-                      ellipsis
-                      style={{ fontSize: 13, flex: 1, minWidth: 0 }}
-                    >
-                      {rt.file_name}
-                    </Typography.Text>
-                    <Typography.Text
-                      style={{ fontSize: 11, flex: "none", color: token.colorTextTertiary }}
-                    >
-                      {formatRelativeTime(rt.modified_at)}
-                    </Typography.Text>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="workspace-toolbar">
-            <div
-              className="file-chip"
-              style={{ background: token.colorFillQuaternary }}
-            >
-              <div
-                className="file-chip-icon"
-                style={{ background: token.colorPrimaryBg }}
-              >
-                <VideoCameraOutlined
-                  style={{ fontSize: 17, color: token.colorPrimary }}
-                />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <Typography.Text strong ellipsis style={{ fontSize: 13, maxWidth: 320 }}>
-                  {file.name}
-                </Typography.Text>
+            <div className="recent">
+              <div className="recent-label mono">最近</div>
+              {recentTasks.map((rt) => (
                 <div
-                  style={{
-                    fontSize: 11,
-                    color: token.colorTextTertiary,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: 320,
+                  key={rt.task_id}
+                  className="recent-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectFile(rt.video_path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
                   }}
                 >
-                  {file.path}
+                  <VideoCameraOutlined
+                    style={{ fontSize: 12, color: token.colorTextTertiary, flex: "none" }}
+                  />
+                  <span className="recent-name">{rt.file_name}</span>
+                  <span className="recent-time mono">{formatRelativeTime(rt.modified_at)}</span>
                 </div>
-              </div>
-              <Button
-                type="text"
-                size="small"
-                icon={<ReloadOutlined />}
-                onClick={onPickFile}
-                disabled={taskRunning}
-              />
+              ))}
             </div>
-            <div style={{ marginLeft: "auto" }} />
+          )}
+        </>
+      ) : (
+        <>
+          <div className="file-header">
+            <VideoCameraOutlined
+              style={{ fontSize: 15, color: token.colorPrimary, flex: "none" }}
+            />
+            <div className="file-title">
+              <Typography.Text strong ellipsis style={{ fontSize: 13, display: "block" }}>
+                {file.name}
+              </Typography.Text>
+              <div
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  color: token.colorTextTertiary,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {file.path}
+              </div>
+            </div>
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={onPickFile}
+              disabled={taskRunning}
+              aria-label="重新选择文件"
+            />
             <Select
               size="small"
               value={language}
               onChange={setLanguage}
               options={LANGUAGES}
-              style={{ width: 110 }}
+              style={{ width: 100 }}
               aria-label="视频语言"
               disabled={taskRunning}
             />
             <Button
               type="primary"
-              icon={<PlayCircleOutlined />}
               size="small"
+              icon={<PlayCircleOutlined />}
               loading={starting}
               disabled={taskRunning}
               onClick={onStart}
@@ -371,77 +311,63 @@ export default function FilePage({ active }: { active: boolean }) {
           </div>
 
           {task && (
-            <div className="workspace-body">
-              <div className="task-area">
-                <Steps
-                  size="small"
-                  current={stepIndex}
-                  status={task.progress.state === "failed" ? "error" : undefined}
-                  items={[
-                    { title: "准备" },
-                    { title: "转写" },
-                    { title: "翻译" },
-                    { title: "完成" },
-                  ]}
-                  style={{ marginBottom: 20 }}
-                />
-                <div className="task-meta-row">
-                  {status && <Tag color={status.color} style={{ marginInlineEnd: 0 }}>{status.label}</Tag>}
-                  <Typography.Text
-                    type="secondary"
-                    ellipsis
-                    style={{ fontSize: 12, flex: 1 }}
-                  >
-                    {task.fileName}
-                  </Typography.Text>
+            <div className="task-panel">
+              <div className="task-inner">
+                <div className="steps-mono mono">
+                  {STEP_NAMES.map((s, i) => (
+                    <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                      <span className={i === stepIndex ? "on" : i < stepIndex ? "done" : ""}>
+                        {i < stepIndex ? "✓ " : ""}
+                        {s}
+                      </span>
+                      {i < STEP_NAMES.length - 1 && <span className="sep">·</span>}
+                    </span>
+                  ))}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div className="pct-row">
                   {done ? (
                     <CheckCircleFilled
-                      style={{ fontSize: 40, color: token.colorSuccess }}
+                      style={{ fontSize: 38, color: token.colorSuccess, alignSelf: "center" }}
                     />
                   ) : (
-                    <div className="task-percent" style={{ color: token.colorText }}>
-                      {pct}
-                      <span style={{ fontSize: 20, color: token.colorTextTertiary }}>%</span>
-                    </div>
+                    <>
+                      <span className="pct mono">{pct}</span>
+                      <span className="pct-sign mono">%</span>
+                    </>
                   )}
-                  <div style={{ flex: 1 }}>
-                    <Progress
-                      percent={pct}
-                      showInfo={false}
-                      status={
-                        task.progress.state === "failed"
-                          ? "exception"
-                          : done
-                            ? "success"
-                            : "active"
-                      }
-                      strokeColor={
-                        task.progress.state === "failed" ? undefined : token.colorPrimary
-                      }
-                    />
-                    <div style={{ marginTop: 6, fontSize: 12 }}>
-                      {task.progress.state === "failed" ? (
-                        <Typography.Text type="danger" style={{ fontSize: 12 }}>
-                          {task.progress.error ?? "未知错误"}
-                        </Typography.Text>
-                      ) : task.progress.state === "processing" ? (
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          正在转写与翻译…
-                        </Typography.Text>
-                      ) : task.progress.state === "idle" ? (
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          正在准备…
-                        </Typography.Text>
-                      ) : (
-                        <Typography.Text type="success" style={{ fontSize: 12 }}>
-                          转写完成，可导出字幕文件
-                        </Typography.Text>
-                      )}
-                    </div>
-                  </div>
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      fontSize: 10,
+                      color: failed ? token.colorError : token.colorTextTertiary,
+                      letterSpacing: 1,
+                    }}
+                    className="mono"
+                  >
+                    {STATE_LABEL[task.progress.state].toUpperCase()}
+                  </span>
+                </div>
+
+                <Progress
+                  percent={pct}
+                  showInfo={false}
+                  size={["100%", 3]}
+                  status={failed ? "exception" : done ? "success" : "active"}
+                  strokeColor={failed ? undefined : token.colorPrimary}
+                />
+                <div className="task-status-line">
+                  {failed ? (
+                    <Typography.Text type="danger" style={{ fontSize: 11.5 }}>
+                      {task.progress.error ?? "未知错误"}
+                    </Typography.Text>
+                  ) : task.progress.state === "processing" ? (
+                    "正在转写与翻译…"
+                  ) : task.progress.state === "idle" ? (
+                    "正在准备…"
+                  ) : done ? (
+                    "转写完成，可导出字幕文件"
+                  ) : null}
                 </div>
 
                 {done && (
