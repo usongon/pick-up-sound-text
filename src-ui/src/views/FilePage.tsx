@@ -2,7 +2,6 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   App as AntdApp,
   Button,
-  List,
   Progress,
   Select,
   Steps,
@@ -238,49 +237,64 @@ export default function FilePage({ active }: { active: boolean }) {
           </div>
 
           {recentTasks.length > 0 && (
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                background: "rgba(255, 255, 255, 0.75)",
-                borderRadius: 16,
-                padding: "4px 8px",
-                boxShadow: "0 1px 3px rgba(17, 24, 39, 0.05)",
-              }}
-            >
-              <List
-                size="small"
-                header={
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 4px" }}>
+              <div
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  color: token.colorTextTertiary,
+                  padding: "8px 0 6px",
+                }}
+              >
+                最近处理
+              </div>
+              {recentTasks.map((rt, i) => (
+                <div
+                  key={rt.task_id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectFile(rt.video_path)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 8px",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    borderBottom:
+                      i < recentTasks.length - 1
+                        ? "1px solid rgba(17, 24, 39, 0.06)"
+                        : "none",
+                    transition: "background 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.45)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <VideoCameraOutlined
+                    style={{ fontSize: 13, color: PRIMARY, flex: "none" }}
+                  />
+                  <Typography.Text
+                    ellipsis
+                    style={{ fontSize: 13, flex: 1, minWidth: 0, color: token.colorText }}
+                  >
+                    {rt.file_name}
+                  </Typography.Text>
                   <span
                     className="mono"
-                    style={{ fontSize: 11, letterSpacing: 2, color: token.colorTextTertiary }}
+                    style={{ fontSize: 10.5, color: token.colorTextTertiary, flex: "none" }}
                   >
-                    最近处理
+                    {formatRelativeTime(rt.modified_at)}
                   </span>
-                }
-                dataSource={recentTasks}
-                renderItem={(rt) => (
-                  <List.Item
-                    style={{ cursor: "pointer", borderRadius: 10, paddingInline: 8 }}
-                    onClick={() => selectFile(rt.video_path)}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <VideoCameraOutlined
-                          style={{ fontSize: 15, color: PRIMARY, marginTop: 8 }}
-                        />
-                      }
-                      title={<Typography.Text style={{ fontSize: 13 }}>{rt.file_name}</Typography.Text>}
-                      description={
-                        <span className="mono" style={{ fontSize: 10.5 }}>
-                          {formatRelativeTime(rt.modified_at)}
-                        </span>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
+                </div>
+              ))}
             </div>
           )}
         </>
