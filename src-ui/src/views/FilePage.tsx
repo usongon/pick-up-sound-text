@@ -241,11 +241,11 @@ export default function FilePage({ active }: { active: boolean }) {
               <div
                 className="mono"
                 style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: 1.5,
-                  color: "#6b7280",
-                  padding: "10px 0 8px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  color: "#374151",
+                  padding: "12px 0 10px",
                 }}
               >
                 最近处理
@@ -263,34 +263,34 @@ export default function FilePage({ active }: { active: boolean }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
-                    padding: "11px 10px",
+                    padding: "12px 10px",
                     borderRadius: 8,
                     cursor: "pointer",
                     borderBottom:
                       i < recentTasks.length - 1
-                        ? "1px solid rgba(17, 24, 39, 0.12)"
+                        ? "1px solid #d1d5db"
                         : "none",
                     transition: "background 0.15s ease",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.55)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.8)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
                   }}
                 >
                   <VideoCameraOutlined
-                    style={{ fontSize: 14, color: PRIMARY, flex: "none" }}
+                    style={{ fontSize: 15, color: PRIMARY, flex: "none" }}
                   />
                   <Typography.Text
                     ellipsis
-                    style={{ fontSize: 13.5, flex: 1, minWidth: 0, color: token.colorText }}
+                    style={{ fontSize: 14, fontWeight: 500, flex: 1, minWidth: 0, color: "#1f2937" }}
                   >
                     {rt.file_name}
                   </Typography.Text>
                   <span
                     className="mono"
-                    style={{ fontSize: 11, color: "#6b7280", flex: "none" }}
+                    style={{ fontSize: 12, color: "#4b5563", flex: "none" }}
                   >
                     {formatRelativeTime(rt.modified_at)}
                   </span>
