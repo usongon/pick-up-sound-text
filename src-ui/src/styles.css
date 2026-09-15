@@ -7,7 +7,13 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: #f6f7fb;
+  /* 晨雾渐变：近白基底 + 品牌色低透明度光晕，卡片纯白形成层次 */
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(139, 92, 246, 0.10), transparent 55%),
+    radial-gradient(1000px 600px at -10% 110%, rgba(99, 102, 241, 0.09), transparent 55%),
+    radial-gradient(800px 500px at 40% -25%, rgba(34, 211, 238, 0.055), transparent 50%),
+    linear-gradient(165deg, #f7f8fd 0%, #f4f4fb 50%, #f8f6fd 100%);
+  background-attachment: fixed;
   color: #1f2937;
   font-family:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
