@@ -243,7 +243,7 @@ export default function FilePage({ active }: { active: boolean }) {
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
-                background: "#fff",
+                background: "rgba(255, 255, 255, 0.75)",
                 borderRadius: 16,
                 padding: "4px 8px",
                 boxShadow: "0 1px 3px rgba(17, 24, 39, 0.05)",
