@@ -12,3 +12,15 @@ src-ui/dist/
 # Generated subtitle outputs
 output*.srt
 output*.vtt
+
+# Local-only design/plan docs (user request: not for GitHub)
+docs/superpowers/specs/2026-09-15-checkpoint-resume-design.md
+docs/superpowers/plans/2026-09-15-checkpoint-resume-plan.md
+
+# Mobile icon output from `cargo tauri icon` (desktop app doesn't use these)
+icons/ios/
+icons/android/
+
+# Build/tool caches
+src-ui/.vite/
+.playwright-cli/
