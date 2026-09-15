@@ -237,7 +237,16 @@ export default function FilePage({ active }: { active: boolean }) {
           </div>
 
           {recentTasks.length > 0 && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 4px" }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                border: "1.5px dashed #d8dce8",
+                borderRadius: 16,
+                padding: "14px 16px",
+              }}
+            >
               <div
                 className="mono"
                 style={{
@@ -245,14 +254,12 @@ export default function FilePage({ active }: { active: boolean }) {
                   fontWeight: 600,
                   letterSpacing: 1,
                   color: "#374151",
-                  padding: "12px 0 10px",
-                  borderBottom: "2px solid #9ca3af",
-                  marginBottom: 2,
+                  paddingBottom: 10,
                 }}
               >
                 最近处理
               </div>
-              {recentTasks.map((rt, i) => (
+              {recentTasks.map((rt) => (
                 <div
                   key={rt.task_id}
                   role="button"
@@ -265,13 +272,9 @@ export default function FilePage({ active }: { active: boolean }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
-                    padding: "12px 10px",
+                    padding: "10px 8px",
                     borderRadius: 8,
                     cursor: "pointer",
-                    borderBottom:
-                      i < recentTasks.length - 1
-                        ? "2px solid #9ca3af"
-                        : "none",
                     transition: "background 0.15s ease",
                   }}
                   onMouseEnter={(e) => {
