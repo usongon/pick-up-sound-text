@@ -246,6 +246,8 @@ export default function FilePage({ active }: { active: boolean }) {
                   letterSpacing: 1,
                   color: "#374151",
                   padding: "12px 0 10px",
+                  borderBottom: "2px solid #9ca3af",
+                  marginBottom: 2,
                 }}
               >
                 最近处理
@@ -268,7 +270,7 @@ export default function FilePage({ active }: { active: boolean }) {
                     cursor: "pointer",
                     borderBottom:
                       i < recentTasks.length - 1
-                        ? "1px solid #d1d5db"
+                        ? "2px solid #9ca3af"
                         : "none",
                     transition: "background 0.15s ease",
                   }}
