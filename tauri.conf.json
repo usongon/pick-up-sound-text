@@ -15,6 +15,9 @@
         "title": "拾言 - Shiyane",
         "width": 1200,
         "height": 800,
+        "minWidth": 960,
+        "minHeight": 620,
+        "titleBarStyle": "Overlay",
         "dragDropEnabled": true
       }
     ],

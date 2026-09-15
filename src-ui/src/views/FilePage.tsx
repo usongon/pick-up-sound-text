@@ -2,11 +2,11 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   App as AntdApp,
   Button,
-  Card,
   Progress,
   Select,
   Tag,
   Typography,
+  message as staticMessage,
   theme as antdTheme,
 } from "antd";
 import {
@@ -15,8 +15,8 @@ import {
   PlayCircleOutlined,
   DownloadOutlined,
   ReloadOutlined,
+  CheckCircleFilled,
 } from "@ant-design/icons";
-import { message as staticMessage } from "antd";
 import { BackendContext } from "../lib/backend";
 import { basename } from "../lib/types";
 import type { PipelineStateName, ProgressInfo } from "../lib/types";
@@ -175,17 +175,10 @@ export default function FilePage({ active }: { active: boolean }) {
     (task.progress.state === "completed" || task.progress.state === "exported");
 
   return (
-    <div className="page" aria-hidden={!active}>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        文件转字幕
-      </Typography.Title>
-      <Typography.Paragraph type="secondary" style={{ marginTop: -4 }}>
-        拖入视频文件，自动转写并翻译为双语字幕，支持 SRT / VTT 导出。
-      </Typography.Paragraph>
-
+    <div className="workspace" aria-hidden={!active}>
       {!file ? (
         <div
-          className="dropzone"
+          className="dropzone-frame"
           role="button"
           tabIndex={0}
           aria-label="选择或拖入视频文件"
@@ -194,177 +187,181 @@ export default function FilePage({ active }: { active: boolean }) {
             if (e.key === "Enter" || e.key === " ") onPickFile();
           }}
           style={{
-            borderColor: dragOver
-              ? token.colorPrimary
-              : token.colorBorderSecondary,
-            borderWidth: 2,
-            borderStyle: "dashed",
-            background: dragOver ? token.colorPrimaryBg : token.colorBgContainer,
-            transform: dragOver ? "scale(1.008)" : undefined,
-            boxShadow: dragOver
-              ? `0 0 0 6px ${token.colorPrimaryBg}`
-              : token.boxShadowTertiary,
+            border: `2px dashed ${dragOver ? token.colorPrimary : token.colorBorderSecondary}`,
+            background: dragOver ? token.colorPrimaryBg : "transparent",
           }}
         >
-          <div className="dropzone-icon">
-            <InboxOutlined style={{ fontSize: 34, color: "#fff" }} />
-          </div>
-          <div className="dropzone-title" style={{ color: token.colorText }}>
-            {dragOver ? "松开即可选择" : "拖入视频文件"}
-          </div>
-          <div
-            className="dropzone-sub"
-            style={{ color: token.colorTextTertiary }}
-          >
-            或点击此处选择 · 支持 mp4 / mkv / avi / mov
+          <div style={{ textAlign: "center", userSelect: "none" }}>
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 18,
+                margin: "0 auto 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
+                boxShadow: "0 8px 24px rgba(13, 148, 136, 0.32)",
+              }}
+            >
+              <InboxOutlined style={{ fontSize: 30, color: "#fff" }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: token.colorText }}>
+              {dragOver ? "松开即可选择" : "拖入视频文件"}
+            </div>
+            <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 6 }}>
+              或点击此处选择 · 支持 mp4 / mkv / avi / mov
+            </div>
           </div>
         </div>
       ) : (
-        <div
-          className="file-chip"
-          style={{
-            background: token.colorBgContainer,
-            boxShadow: token.boxShadowTertiary,
-          }}
-        >
-          <div
-            className="file-chip-icon"
-            style={{ background: token.colorPrimaryBg }}
-          >
-            <VideoCameraOutlined
-              style={{ fontSize: 24, color: token.colorPrimary }}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Typography.Text strong ellipsis style={{ fontSize: 15 }}>
-              {file.name}
-            </Typography.Text>
+        <>
+          <div className="workspace-toolbar">
             <div
-              style={{
-                fontSize: 12,
-                color: token.colorTextTertiary,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
+              className="file-chip"
+              style={{ background: token.colorFillQuaternary }}
             >
-              {file.path}
+              <div
+                className="file-chip-icon"
+                style={{ background: token.colorPrimaryBg }}
+              >
+                <VideoCameraOutlined
+                  style={{ fontSize: 17, color: token.colorPrimary }}
+                />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <Typography.Text strong ellipsis style={{ fontSize: 13, maxWidth: 320 }}>
+                  {file.name}
+                </Typography.Text>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: token.colorTextTertiary,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: 320,
+                  }}
+                >
+                  {file.path}
+                </div>
+              </div>
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={onPickFile}
+                disabled={taskRunning}
+              />
             </div>
-          </div>
-          <Button
-            type="text"
-            icon={<ReloadOutlined />}
-            onClick={onPickFile}
-            disabled={taskRunning}
-          >
-            重新选择
-          </Button>
-        </div>
-      )}
-
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          marginTop: 18,
-        }}
-      >
-        <Select
-          value={language}
-          onChange={setLanguage}
-          options={LANGUAGES}
-          style={{ width: 160 }}
-          aria-label="视频语言"
-          disabled={taskRunning}
-        />
-        <Button
-          type="primary"
-          size="large"
-          icon={<PlayCircleOutlined />}
-          loading={starting}
-          disabled={!file || taskRunning}
-          onClick={onStart}
-        >
-          {task && done ? "重新处理" : "开始转字幕"}
-        </Button>
-      </div>
-
-      {task && (
-        <Card
-          style={{ marginTop: 22 }}
-          styles={{
-            body: { padding: "20px 24px" },
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 14,
-            }}
-          >
-            <VideoCameraOutlined
-              style={{ fontSize: 18, color: token.colorPrimary }}
+            <div style={{ marginLeft: "auto" }} />
+            <Select
+              size="small"
+              value={language}
+              onChange={setLanguage}
+              options={LANGUAGES}
+              style={{ width: 110 }}
+              aria-label="视频语言"
+              disabled={taskRunning}
             />
-            <Typography.Text strong ellipsis style={{ flex: 1 }}>
-              {task.fileName}
-            </Typography.Text>
-            {status && <Tag color={status.color}>{status.label}</Tag>}
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              size="small"
+              loading={starting}
+              disabled={taskRunning}
+              onClick={onStart}
+            >
+              {task && done ? "重新处理" : "开始"}
+            </Button>
           </div>
-          <Progress
-            percent={pct}
-            status={
-              task.progress.state === "failed"
-                ? "exception"
-                : done
-                  ? "success"
-                  : "active"
-            }
-            strokeColor={
-              task.progress.state === "failed" ? undefined : token.colorPrimary
-            }
-          />
-          <div style={{ marginTop: 8, fontSize: 13 }}>
-            {task.progress.state === "failed" ? (
-              <Typography.Text type="danger">
-                失败：{task.progress.error ?? "未知错误"}
-              </Typography.Text>
-            ) : task.progress.state === "processing" ? (
-              <Typography.Text type="secondary">
-                正在转写与翻译… {pct}%
-              </Typography.Text>
-            ) : task.progress.state === "idle" ? (
-              <Typography.Text type="secondary">
-                正在准备…
-              </Typography.Text>
-            ) : (
-              <Typography.Text type="success">
-                转写完成，可导出字幕文件
-              </Typography.Text>
-            )}
-          </div>
-          {done && (
-            <div className="task-card-actions">
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                loading={exporting === "srt"}
-                onClick={() => onExport("srt")}
-              >
-                导出 SRT
-              </Button>
-              <Button
-                icon={<DownloadOutlined />}
-                loading={exporting === "vtt"}
-                onClick={() => onExport("vtt")}
-              >
-                导出 VTT
-              </Button>
+
+          {task && (
+            <div className="workspace-body">
+              <div className="task-area">
+                <div className="task-meta-row">
+                  {status && <Tag color={status.color} style={{ marginInlineEnd: 0 }}>{status.label}</Tag>}
+                  <Typography.Text
+                    type="secondary"
+                    ellipsis
+                    style={{ fontSize: 12, flex: 1 }}
+                  >
+                    {task.fileName}
+                  </Typography.Text>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {done ? (
+                    <CheckCircleFilled
+                      style={{ fontSize: 40, color: token.colorSuccess }}
+                    />
+                  ) : (
+                    <div className="task-percent" style={{ color: token.colorText }}>
+                      {pct}
+                      <span style={{ fontSize: 20, color: token.colorTextTertiary }}>%</span>
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <Progress
+                      percent={pct}
+                      showInfo={false}
+                      status={
+                        task.progress.state === "failed"
+                          ? "exception"
+                          : done
+                            ? "success"
+                            : "active"
+                      }
+                      strokeColor={
+                        task.progress.state === "failed" ? undefined : token.colorPrimary
+                      }
+                    />
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      {task.progress.state === "failed" ? (
+                        <Typography.Text type="danger" style={{ fontSize: 12 }}>
+                          {task.progress.error ?? "未知错误"}
+                        </Typography.Text>
+                      ) : task.progress.state === "processing" ? (
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          正在转写与翻译…
+                        </Typography.Text>
+                      ) : task.progress.state === "idle" ? (
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          正在准备…
+                        </Typography.Text>
+                      ) : (
+                        <Typography.Text type="success" style={{ fontSize: 12 }}>
+                          转写完成，可导出字幕文件
+                        </Typography.Text>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {done && (
+                  <div className="task-actions">
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      loading={exporting === "srt"}
+                      onClick={() => onExport("srt")}
+                    >
+                      导出 SRT
+                    </Button>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      loading={exporting === "vtt"}
+                      onClick={() => onExport("vtt")}
+                    >
+                      导出 VTT
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </Card>
+        </>
       )}
     </div>
   );
