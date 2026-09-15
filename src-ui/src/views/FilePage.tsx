@@ -4,6 +4,7 @@ import {
   Button,
   Progress,
   Select,
+  Steps,
   Tag,
   Typography,
   message as staticMessage,
@@ -16,10 +17,11 @@ import {
   DownloadOutlined,
   ReloadOutlined,
   CheckCircleFilled,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import { BackendContext } from "../lib/backend";
 import { basename } from "../lib/types";
-import type { PipelineStateName, ProgressInfo } from "../lib/types";
+import type { PipelineStateName, ProgressInfo, RecentTask } from "../lib/types";
 
 const LANGUAGES = [
   { value: "auto", label: "自动识别" },
@@ -55,6 +57,7 @@ export default function FilePage({ active }: { active: boolean }) {
   const [starting, setStarting] = useState(false);
   const [task, setTask] = useState<Task | null>(null);
   const [exporting, setExporting] = useState<"srt" | "vtt" | null>(null);
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
 
   const pollRef = useRef<number | null>(null);
   const taskRunningRef = useRef(false);
@@ -86,6 +89,14 @@ export default function FilePage({ active }: { active: boolean }) {
   }, [backend, stopPolling]);
 
   useEffect(() => stopPolling, [stopPolling]);
+
+  useEffect(() => {
+    if (!active || file) return;
+    backend
+      .listRecentTasks()
+      .then(setRecentTasks)
+      .catch(() => setRecentTasks([]));
+  }, [active, file, backend]);
 
   const selectFile = useCallback((path: string) => {
     setFile({ path, name: basename(path) });
@@ -174,46 +185,128 @@ export default function FilePage({ active }: { active: boolean }) {
     task !== null &&
     (task.progress.state === "completed" || task.progress.state === "exported");
 
+  const stepIndex = !task
+    ? -1
+    : task.progress.state === "idle"
+      ? 0
+      : task.progress.state === "processing"
+        ? pct < 50
+          ? 1
+          : 2
+        : 3;
+
+  const formatRelativeTime = (ts: number): string => {
+    const diff = Math.floor(Date.now() / 1000) - ts;
+    if (diff < 3600) return `${Math.max(1, Math.floor(diff / 60))} 分钟前`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+    return `${Math.floor(diff / 86400)} 天前`;
+  };
+
   return (
     <div className="workspace" aria-hidden={!active}>
       {!file ? (
-        <div
-          className="dropzone-frame"
-          role="button"
-          tabIndex={0}
-          aria-label="选择或拖入视频文件"
-          onClick={onPickFile}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") onPickFile();
-          }}
-          style={{
-            border: `2px dashed ${dragOver ? token.colorPrimary : token.colorBorderSecondary}`,
-            background: dragOver ? token.colorPrimaryBg : "transparent",
-          }}
-        >
-          <div style={{ textAlign: "center", userSelect: "none" }}>
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 18,
-                margin: "0 auto 14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
-                boxShadow: "0 8px 24px rgba(13, 148, 136, 0.32)",
-              }}
-            >
-              <InboxOutlined style={{ fontSize: 30, color: "#fff" }} />
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: token.colorText }}>
-              {dragOver ? "松开即可选择" : "拖入视频文件"}
-            </div>
-            <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 6 }}>
-              或点击此处选择 · 支持 mp4 / mkv / avi / mov
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            className="dropzone-frame"
+            role="button"
+            tabIndex={0}
+            aria-label="选择或拖入视频文件"
+            onClick={onPickFile}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onPickFile();
+            }}
+            style={{
+              flex: recentTasks.length > 0 ? "none" : 1,
+              minHeight: recentTasks.length > 0 ? 200 : undefined,
+              border: `2px dashed ${dragOver ? token.colorPrimary : token.colorBorderSecondary}`,
+              background: dragOver ? token.colorPrimaryBg : "transparent",
+            }}
+          >
+            <div style={{ textAlign: "center", userSelect: "none" }}>
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  margin: "0 auto 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
+                  boxShadow: "0 8px 24px rgba(13, 148, 136, 0.32)",
+                }}
+              >
+                <InboxOutlined style={{ fontSize: 26, color: "#fff" }} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: token.colorText }}>
+                {dragOver ? "松开即可选择" : "拖入视频文件"}
+              </div>
+              <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 6 }}>
+                或点击此处选择 · 支持 mp4 / mkv / avi / mov
+              </div>
             </div>
           </div>
+
+          {recentTasks.length > 0 && (
+            <div style={{ marginTop: 20, flexShrink: 0 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: token.colorTextTertiary,
+                  marginBottom: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <ClockCircleOutlined />
+                最近处理
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {recentTasks.map((rt) => (
+                  <div
+                    key={rt.task_id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectFile(rt.video_path)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = token.colorFillQuaternary;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <VideoCameraOutlined
+                      style={{ fontSize: 14, color: token.colorPrimary, flex: "none" }}
+                    />
+                    <Typography.Text
+                      ellipsis
+                      style={{ fontSize: 13, flex: 1, minWidth: 0 }}
+                    >
+                      {rt.file_name}
+                    </Typography.Text>
+                    <Typography.Text
+                      style={{ fontSize: 11, flex: "none", color: token.colorTextTertiary }}
+                    >
+                      {formatRelativeTime(rt.modified_at)}
+                    </Typography.Text>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -280,6 +373,18 @@ export default function FilePage({ active }: { active: boolean }) {
           {task && (
             <div className="workspace-body">
               <div className="task-area">
+                <Steps
+                  size="small"
+                  current={stepIndex}
+                  status={task.progress.state === "failed" ? "error" : undefined}
+                  items={[
+                    { title: "准备" },
+                    { title: "转写" },
+                    { title: "翻译" },
+                    { title: "完成" },
+                  ]}
+                  style={{ marginBottom: 20 }}
+                />
                 <div className="task-meta-row">
                   {status && <Tag color={status.color} style={{ marginInlineEnd: 0 }}>{status.label}</Tag>}
                   <Typography.Text

@@ -1,6 +1,6 @@
 mod commands;
 
-use commands::{export_subtitle, get_config, get_processing_progress, save_config, start_file_processing, test_asr_connection, test_translate_connection, AppState};
+use commands::{export_subtitle, get_config, get_processing_progress, list_recent_tasks, save_config, start_file_processing, test_asr_connection, test_translate_connection, AppState};
 use pick_up_sound_text::config::AppConfig;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -35,6 +35,7 @@ fn main() {
             save_config,
             test_asr_connection,
             test_translate_connection,
+            list_recent_tasks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

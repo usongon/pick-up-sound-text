@@ -40,6 +40,13 @@ export interface ProgressInfo {
   error: string | null;
 }
 
+export interface RecentTask {
+  task_id: string;
+  video_path: string;
+  file_name: string;
+  modified_at: number;
+}
+
 export function basename(path: string): string {
   const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return i >= 0 ? path.slice(i + 1) : path;

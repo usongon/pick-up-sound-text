@@ -1,4 +1,4 @@
-import type { AppConfig, ProgressInfo } from "./types";
+import type { AppConfig, ProgressInfo, RecentTask } from "./types";
 import type { Backend, DragHandlers } from "./backend";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -79,6 +79,30 @@ export const mockBackend: Backend = {
   async testTranslateConnection() {
     await delay(900);
     return "翻译连接成功（演示模式）";
+  },
+  async listRecentTasks(): Promise<RecentTask[]> {
+    await delay(300);
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      {
+        task_id: "a1b2c3",
+        video_path: "/Users/demo/Movies/tears_of_steel_1080p.mp4",
+        file_name: "tears_of_steel_1080p.mp4",
+        modified_at: now - 3600,
+      },
+      {
+        task_id: "d4e5f6",
+        video_path: "/Users/demo/Movies/product_demo_final.mp4",
+        file_name: "product_demo_final.mp4",
+        modified_at: now - 86400,
+      },
+      {
+        task_id: "g7h8i9",
+        video_path: "/Users/demo/Movies/meeting_recording_0912.mkv",
+        file_name: "meeting_recording_0912.mkv",
+        modified_at: now - 86400 * 3,
+      },
+    ];
   },
   async pickVideoFile() {
     await delay(350);

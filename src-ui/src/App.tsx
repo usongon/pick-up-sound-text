@@ -68,7 +68,7 @@ export default function App() {
             </div>
 
             <div className="main-row">
-              <Layout.Sider width={200} theme="dark" style={{ minHeight: 0 }}>
+              <Layout.Sider width={200} theme="dark" style={{ minHeight: 0, display: "flex", flexDirection: "column" }}>
                 <div className="brand">
                   <LogoMark size={30} />
                   <div>
@@ -83,7 +83,18 @@ export default function App() {
                   selectedKeys={[view]}
                   items={MENU_ITEMS}
                   onClick={(e) => setView(e.key as ViewKey)}
+                  style={{ flex: 1 }}
                 />
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderTop: "1px solid rgba(255,255,255,0.07)",
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.3)",
+                  }}
+                >
+                  v{version}
+                </div>
               </Layout.Sider>
 
               <div className="pane">
@@ -108,8 +119,6 @@ export default function App() {
                 color: token.colorTextTertiary,
               }}
             >
-              <span>拾言 v{version}</span>
-              <span>·</span>
               <span>{MENU_ITEMS.find((m) => m.key === view)?.label}</span>
               <div className="statusbar-right">
                 {backend.mocked && (
@@ -125,3 +134,4 @@ export default function App() {
     </ConfigProvider>
   );
 }
+

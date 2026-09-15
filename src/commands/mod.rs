@@ -19,6 +19,14 @@ pub struct ProgressInfo {
     pub error: Option<String>,
 }
 
+#[derive(Serialize)]
+pub struct RecentTask {
+    pub task_id: String,
+    pub video_path: String,
+    pub file_name: String,
+    pub modified_at: u64,
+}
+
 pub struct AppState {
     pub pipeline_state: Arc<Mutex<Option<Arc<Mutex<PipelineState>>>>>,
     pub pipeline_entries: Arc<Mutex<Option<Arc<Mutex<Vec<SubtitleEntry>>>>>>,
@@ -255,9 +263,69 @@ pub async fn test_translate_connection(config: AppConfig) -> Result<String, Stri
         model: config.translate.model.clone(),
         api_key: config.translate.api_key.clone(),
     };
-    
+
     match provider.test_connection().await {
         Ok(_) => Ok("翻译连接成功".to_string()),
         Err(e) => Err(format!("翻译连接失败: {}", e)),
     }
+}
+
+#[tauri::command]
+pub async fn list_recent_tasks() -> Result<Vec<RecentTask>, String> {
+    let tasks_dir = dirs::home_dir()
+        .ok_or_else(|| "Cannot find home directory".to_string())?
+        .join("Library/Application Support/pick-up-sound-text/tasks");
+
+    if !tasks_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut tasks: Vec<RecentTask> = Vec::new();
+    let entries = std::fs::read_dir(&tasks_dir).map_err(|e| e.to_string())?;
+
+    for entry in entries.flatten() {
+        let progress_file = entry.path().join("progress.jsonl");
+        if !progress_file.exists() {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&progress_file) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let first_line = match content.lines().next() {
+            Some(l) if !l.trim().is_empty() => l,
+            _ => continue,
+        };
+        let meta: serde_json::Value = match serde_json::from_str(first_line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let video_path = meta["video_path"].as_str().unwrap_or("").to_string();
+        if video_path.is_empty() {
+            continue;
+        }
+        let file_name = PathBuf::from(&video_path)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let modified_at = std::fs::metadata(&progress_file)
+            .and_then(|m| m.modified())
+            .map(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            })
+            .unwrap_or(0);
+
+        tasks.push(RecentTask {
+            task_id: meta["task_id"].as_str().unwrap_or("").to_string(),
+            video_path,
+            file_name,
+            modified_at,
+        });
+    }
+
+    tasks.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    tasks.truncate(8);
+    Ok(tasks)
 }
