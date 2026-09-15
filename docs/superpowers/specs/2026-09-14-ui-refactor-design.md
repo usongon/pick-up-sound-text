@@ -86,3 +86,16 @@
 - **S5 收尾**：icon + `cargo tauri build` + README 更新 + 最终对抗评审
 
 每阶段一次 commit；每阶段完成后按本设计的验证门禁自查。
+
+---
+
+## v2 修订（2026-09-15，用户反馈"像网页不像软件"）
+
+诊断：默认系统标题栏、880px 居中列+大标题、卡片浮于灰画布、网页密度、表单长页 = 网页感来源。
+
+改造（用户确认两项口味：Overlay 自绘工具条、设置双栏）：
+1. `titleBarStyle: "Overlay"` + 44px 自绘工具条（`data-tauri-drag-region` 拖拽窗口、左端 80px 让位红绿灯、右侧主题切换），min 960x620
+2. 密度 token：fontSize 13 / controlHeight 30 / borderRadius 8；去 max-width 与卡片阴影
+3. 文件页=工作台：空态整面板拖放区，选中后紧凑工具条+大百分比任务区，无滚动
+4. 设置=双栏（左分类 190px / 右单列表单），分区切换 preserve 保留字段值，`getFieldsValue(true)` 保证契约完整
+5. 底部 28px 状态栏承载版本/视图/演示标记
