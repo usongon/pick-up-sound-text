@@ -237,68 +237,24 @@ export default function FilePage({ active }: { active: boolean }) {
           </div>
 
           {recentTasks.length > 0 && (
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                border: "1.5px dashed #d8dce8",
-                borderRadius: 16,
-                padding: "14px 16px",
-              }}
-            >
-              <div
-                className="mono"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  color: "#374151",
-                  paddingBottom: 10,
-                }}
-              >
-                最近处理
-              </div>
+            <div className="recent-frame">
+              <div className="recent-label mono">最近处理</div>
               {recentTasks.map((rt) => (
                 <div
                   key={rt.task_id}
+                  className="recent-row"
                   role="button"
                   tabIndex={0}
                   onClick={() => selectFile(rt.video_path)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") selectFile(rt.video_path);
                   }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 8px",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.8)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
                 >
                   <VideoCameraOutlined
                     style={{ fontSize: 15, color: PRIMARY, flex: "none" }}
                   />
-                  <Typography.Text
-                    ellipsis
-                    style={{ fontSize: 14, fontWeight: 500, flex: 1, minWidth: 0, color: "#1f2937" }}
-                  >
-                    {rt.file_name}
-                  </Typography.Text>
-                  <span
-                    className="mono"
-                    style={{ fontSize: 12, color: "#4b5563", flex: "none" }}
-                  >
-                    {formatRelativeTime(rt.modified_at)}
-                  </span>
+                  <span className="recent-name">{rt.file_name}</span>
+                  <span className="recent-time mono">{formatRelativeTime(rt.modified_at)}</span>
                 </div>
               ))}
             </div>

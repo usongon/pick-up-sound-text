@@ -2,8 +2,6 @@ import { theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
 
 export const PRIMARY = "#6366f1";
-export const PRIMARY_SOFT = "#eef2ff";
-export const GRADIENT = "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)";
 
 const FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif';

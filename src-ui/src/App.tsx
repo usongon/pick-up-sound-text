@@ -45,8 +45,8 @@ export default function App() {
       <BackendContext.Provider value={backend}>
         <AntdApp>
           <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-            {/* macOS Overlay：红绿灯悬浮左侧，中央分段导航，右侧设置齿轮 */}
-            <div className="titlebar">
+            {/* macOS Overlay：红绿灯悬浮左侧，中央分段导航，右侧设置齿轮；整条空白处可拖拽窗口 */}
+            <div className="titlebar" data-tauri-drag-region>
               <div className="titlebar-zone titlebar-left" data-tauri-drag-region />
               <Segmented
                 value={view}
